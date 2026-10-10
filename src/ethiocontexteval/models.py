@@ -1,4 +1,4 @@
-"""Model discovery and configuration helpers (CLI: python -m ethiocontexteval.models)."""
+"""Model discovery helpers (CLI: python -m ethiocontexteval.models)."""
 
 from __future__ import annotations
 
@@ -7,115 +7,178 @@ import json
 import sys
 from collections.abc import Sequence
 
-from ethiocontexteval.bedrock_client import BedrockClient
 from ethiocontexteval.config import load_config
+from ethiocontexteval.providers import ProviderError, get_provider
 
 
-def list_models_cli(region: str | None = None, provider: str | None = None) -> int:
-    cfg = load_config()
-    region_name = region or cfg.aws_region
-    client = BedrockClient(region_name=region_name)
+def list_models_cli(
+    provider_name: str,
+    *,
+    region: str | None = None,
+    base_url: str | None = None,
+) -> int:
+    cfg = load_config(provider=provider_name)
     try:
-        models = client.list_foundation_models(by_provider=provider)
-    except Exception as exc:  # noqa: BLE001
-        print(f"ERROR: failed to list foundation models in region '{region_name}': {exc}")
-        print(
-            "Check AWS credentials (aws sts get-caller-identity), region, "
-            "and Bedrock permissions (bedrock:ListFoundationModels)."
+        provider = get_provider(
+            provider_name,
+            region=region or cfg.aws_region,
+            base_url=base_url or cfg.ollama_base_url,
         )
+    except ProviderError as exc:
+        print(f"ERROR: {exc}")
         return 1
 
-    if not models:
-        print(f"No foundation models returned for region '{region_name}'.")
-        return 0
+    health = provider.health_check()
+    print(f"Provider: {provider.provider_name()}")
+    print(f"Health: ok={health.get('ok')} — {health.get('message')}")
+    if not health.get("ok") and provider.provider_name() != "mock":
+        return 1
 
-    # Stable sort
-    models = sorted(
-        models,
-        key=lambda m: (
-            str(m.get("provider") or ""),
-            str(m.get("model_name") or ""),
-            str(m.get("model_id") or ""),
-        ),
-    )
+    try:
+        models = provider.list_models()
+    except ProviderError as exc:
+        print(f"ERROR listing models: {exc}")
+        return 1
 
-    print(f"Region: {region_name}")
-    print(f"Foundation models: {len(models)}")
-    print("-" * 100)
-    header = (
-        f"{'PROVIDER':<16} {'MODEL NAME':<28} {'MODEL ID':<42} "
-        f"{'IN':<12} {'OUT':<12} {'INFER':<16}"
-    )
-    print(header)
-    print("-" * 100)
+    print(f"Models visible: {len(models)}")
+    print("-" * 80)
     for m in models:
-        provider_s = str(m.get("provider") or "")[:16]
-        name = str(m.get("model_name") or "")[:28]
-        mid = str(m.get("model_id") or "")[:42]
-        inn = ",".join(m.get("input_modalities") or [])[:12]
-        out = ",".join(m.get("output_modalities") or [])[:12]
-        infer = ",".join(m.get("inference_types") or [])[:16]
-        print(f"{provider_s:<16} {name:<28} {mid:<42} {inn:<12} {out:<12} {infer:<16}")
+        print(f"  - {m.model_id}" + (f" ({m.name})" if m.name and m.name != m.model_id else ""))
+        if m.metadata:
+            # keep listing compact
+            keys = list(m.metadata.keys())[:5]
+            if keys:
+                print(f"      meta keys: {', '.join(keys)}")
 
-    # Compare configured pilot models
     print()
     print("Configured pilot models:")
     for mc in cfg.models:
         flag = "enabled" if mc.enabled else "disabled"
         available = "unknown"
         try:
-            available = "available" if client.is_model_available(mc.model_id) else "NOT FOUND"
-        except Exception:  # noqa: BLE001
-            available = "check_failed"
+            provider.ensure_model_available(mc.model_id)
+            available = "available"
+        except ProviderError:
+            available = "NOT FOUND / not installed"
+        except Exception as exc:  # noqa: BLE001
+            available = f"check_failed ({exc})"
         print(f"  - {mc.name}: {mc.model_id} [{flag}] -> {available}")
     return 0
 
 
-def check_configured(region: str | None = None) -> int:
-    cfg = load_config()
-    region_name = region or cfg.aws_region
-    client = BedrockClient(region_name=region_name)
+def health_cli(
+    provider_name: str,
+    *,
+    region: str | None = None,
+    base_url: str | None = None,
+) -> int:
+    cfg = load_config(provider=provider_name)
+    try:
+        provider = get_provider(
+            provider_name,
+            region=region or cfg.aws_region,
+            base_url=base_url or cfg.ollama_base_url,
+        )
+    except ProviderError as exc:
+        print(f"ERROR: {exc}")
+        return 1
+    health = provider.health_check()
+    print(json.dumps(health, indent=2, default=str))
+    return 0 if health.get("ok") else 1
+
+
+def check_configured(
+    provider_name: str,
+    *,
+    region: str | None = None,
+    base_url: str | None = None,
+) -> int:
+    cfg = load_config(provider=provider_name)
+    try:
+        provider = get_provider(
+            provider_name,
+            region=region or cfg.aws_region,
+            base_url=base_url or cfg.ollama_base_url,
+        )
+    except ProviderError as exc:
+        print(f"ERROR: {exc}")
+        return 1
     ok = True
+    health = provider.health_check()
+    if not health.get("ok"):
+        print(f"Health failed: {health.get('message')}")
+        return 2
     for mc in cfg.enabled_models():
         try:
-            client.ensure_model_available(mc.model_id)
+            provider.ensure_model_available(mc.model_id)
             print(f"OK: {mc.name} ({mc.model_id})")
-        except RuntimeError as exc:
+        except ProviderError as exc:
             ok = False
             print(f"MISSING: {mc.name} ({mc.model_id})")
             print(f"  {exc}")
     return 0 if ok else 2
 
 
-def dump_json(region: str | None = None) -> int:
-    cfg = load_config()
-    region_name = region or cfg.aws_region
-    client = BedrockClient(region_name=region_name)
-    models = client.list_foundation_models()
-    print(json.dumps(models, indent=2))
+def dump_json(
+    provider_name: str,
+    *,
+    region: str | None = None,
+    base_url: str | None = None,
+) -> int:
+    cfg = load_config(provider=provider_name)
+    provider = get_provider(
+        provider_name,
+        region=region or cfg.aws_region,
+        base_url=base_url or cfg.ollama_base_url,
+    )
+    models = provider.list_models()
+    print(json.dumps([m.to_dict() for m in models], indent=2))
     return 0
 
 
 def main(argv: Sequence[str] | None = None) -> None:
     parser = argparse.ArgumentParser(
         prog="python -m ethiocontexteval.models",
-        description="Discover and verify Amazon Bedrock foundation models.",
+        description="Discover and verify models for a chosen provider.",
     )
     parser.add_argument(
         "command",
-        choices=["list", "check", "json"],
-        help="list: human table; check: verify configured models; json: raw dump",
+        choices=["list", "check", "health", "json"],
+        help="list | check configured | health | json dump",
     )
-    parser.add_argument("--region", default=None, help="AWS region override")
-    parser.add_argument("--provider", default=None, help="Filter list by provider name")
+    parser.add_argument(
+        "--provider",
+        default=None,
+        help="mock | ollama | bedrock (default from config / ollama)",
+    )
+    parser.add_argument("--region", default=None, help="AWS region override (bedrock)")
+    parser.add_argument("--ollama-url", default=None, help="Ollama base URL")
+    parser.add_argument(
+        "--config",
+        default=None,
+        help="Models config JSON path",
+    )
     args = parser.parse_args(list(argv) if argv is not None else None)
 
+    cfg = load_config(models_config_path=args.config, provider=args.provider)
+    provider_name = (args.provider or cfg.provider or "ollama").strip().lower()
+
     if args.command == "list":
-        code = list_models_cli(region=args.region, provider=args.provider)
+        code = list_models_cli(
+            provider_name, region=args.region, base_url=args.ollama_url
+        )
     elif args.command == "check":
-        code = check_configured(region=args.region)
+        code = check_configured(
+            provider_name, region=args.region, base_url=args.ollama_url
+        )
+    elif args.command == "health":
+        code = health_cli(
+            provider_name, region=args.region, base_url=args.ollama_url
+        )
     else:
-        code = dump_json(region=args.region)
+        code = dump_json(
+            provider_name, region=args.region, base_url=args.ollama_url
+        )
     sys.exit(code)
 
 

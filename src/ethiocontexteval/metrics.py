@@ -216,6 +216,7 @@ def attach_model_from_mapping(
         merged = dict(r)
         m = by_blind.get(str(r.get("blind_id")))
         if m:
+            merged["provider"] = m.get("provider")
             merged["model_id"] = m.get("model_id")
             merged["model_name"] = m.get("model_name")
             merged["response_id"] = m.get("response_id")

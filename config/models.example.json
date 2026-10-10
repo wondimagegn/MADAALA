@@ -1,4 +1,5 @@
 {
+  "provider": "bedrock",
   "models": [
     {
       "name": "nova-lite",
@@ -11,5 +12,5 @@
       "enabled": true
     }
   ],
-  "notes": "Copy to config/models.json for local overrides. Verify IDs with: python -m ethiocontexteval.models list. Do not assume Nova models are available in every region."
+  "notes": "OPTIONAL future/cloud provider configuration for a funded AWS-based study. Copy to config/models.json only when using Bedrock. Requires: pip install -e \".[aws]\" and valid AWS credentials. Verify IDs with: python -m ethiocontexteval.models list --provider bedrock. Do not assume Nova models are available in every region. The preliminary local pilot does not use Bedrock."
 }

@@ -5,7 +5,7 @@ from __future__ import annotations
 from ethiocontexteval.anonymize import anonymize_generations
 
 
-def test_anonymize_strips_model_identity():
+def test_anonymize_strips_model_and_provider_identity():
     generations = [
         {
             "response_id": "r1",
@@ -14,8 +14,9 @@ def test_anonymize_strips_model_identity():
             "language": "en",
             "variant": "standard",
             "run": 1,
-            "model_id": "amazon.nova-lite-v1:0",
-            "model_name": "nova-lite",
+            "provider": "ollama",
+            "model_id": "qwen2.5:7b",
+            "model_name": "qwen-local",
             "response": "Answer A",
             "status": "ok",
         },
@@ -26,8 +27,9 @@ def test_anonymize_strips_model_identity():
             "language": "en",
             "variant": "standard",
             "run": 1,
-            "model_id": "amazon.nova-pro-v1:0",
-            "model_name": "nova-pro",
+            "provider": "ollama",
+            "model_id": "gemma3:4b",
+            "model_name": "gemma-local",
             "response": "Answer B",
             "status": "ok",
         },
@@ -37,7 +39,8 @@ def test_anonymize_strips_model_identity():
             "domain": "education",
             "language": "en",
             "run": 1,
-            "model_id": "amazon.nova-lite-v1:0",
+            "provider": "ollama",
+            "model_id": "qwen2.5:7b",
             "response": None,
             "status": "error",
         },
@@ -51,9 +54,9 @@ def test_anonymize_strips_model_identity():
         assert "provider" not in row
         assert row["blind_id"].startswith("B-")
         assert row["response"] in {"Answer A", "Answer B"}
+    assert {m["provider"] for m in mapping} == {"ollama"}
     map_models = {m["model_id"] for m in mapping}
-    assert map_models == {"amazon.nova-lite-v1:0", "amazon.nova-pro-v1:0"}
-    # mapping links blind_id to response_id
+    assert map_models == {"qwen2.5:7b", "gemma3:4b"}
     assert {m["response_id"] for m in mapping} == {"r1", "r2"}
 
 
@@ -65,6 +68,7 @@ def test_blind_ids_unique():
             "domain": "public_services",
             "language": "en",
             "run": 1,
+            "provider": "mock",
             "model_id": "m",
             "response": f"text {i}",
             "status": "ok",
@@ -75,3 +79,4 @@ def test_blind_ids_unique():
     ids = [b["blind_id"] for b in blinded]
     assert len(ids) == len(set(ids))
     assert len(mapping) == 5
+    assert all(m.get("provider") == "mock" for m in mapping)

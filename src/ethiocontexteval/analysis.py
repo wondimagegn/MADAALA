@@ -483,9 +483,16 @@ def generate_report(
         "- **Languages:** English (master), Amharic and Afaan Oromo (human translation pending)."
     )
     lines.append("- **Domains:** education, public services, business/finance, Ethiopian contextual reasoning.")
-    lines.append("- **Design cell:** scenarios × languages × models × repeated generations.")
-    lines.append("- **Inference:** Amazon Bedrock Converse API; temperature 0 by default.")
-    lines.append("- **Blinding:** evaluators see responses without model identity.")
+    lines.append("- **Design cell:** scenarios x languages x models x repeated generations.")
+    lines.append(
+        "- **Inference:** provider-independent (`mock` / `ollama` / optional `bedrock`); "
+        "temperature 0 by default."
+    )
+    lines.append(
+        "- **Current feasibility pilot:** local open-weight models via Ollama when executed; "
+        "do not claim Bedrock usage unless generations record provider=bedrock."
+    )
+    lines.append("- **Blinding:** evaluators see responses without provider or model identity.")
     lines.append("")
     lines.append("## Dataset")
     lines.append("")
@@ -499,13 +506,14 @@ def generate_report(
     lines.append("## Models")
     lines.append("")
     cfg = load_config()
+    lines.append(f"- **Configured provider:** `{cfg.provider}`")
     for m in cfg.models:
         state = "enabled" if m.enabled else "disabled"
         lines.append(f"- `{m.name}`: `{m.model_id}` ({state})")
     lines.append("")
     lines.append(
-        "Model availability must be verified per region via "
-        "`python -m ethiocontexteval.models list`."
+        "Model availability must be verified for the chosen provider via "
+        "`python -m ethiocontexteval.models list --provider <name>`."
     )
     lines.append("")
     lines.append("## Human Evaluation")
@@ -566,22 +574,26 @@ def generate_report(
     lines.append("- Small pilot scenario count (12 masters).")
     lines.append("- Amharic and Afaan Oromo prompts require expert translation before multilingual claims.")
     lines.append("- Limited statistical power; p-values are exploratory.")
-    lines.append("- Model availability and behavior vary by AWS region and time.")
+    lines.append(
+        "- Local model availability depends on hardware and manual Ollama installs; "
+        "optional Bedrock availability depends on account/region when used."
+    )
     lines.append("- Single-institution pilot evaluators may not represent all user communities.")
     lines.append("")
     lines.append("## Lessons Learned")
     lines.append("")
     lines.append(
         "_To be completed after the first end-to-end pilot cycle "
-        "(generation → blinding → rating → analysis)._"
+        "(generation -> blinding -> rating -> analysis)._"
     )
     lines.append("")
     lines.append("## Implications for Full EthioContextEval Study")
     lines.append("")
     lines.append(
-        "The pilot validates tooling, schema, blinding, and analysis pathways. "
+        "The pilot validates tooling, schema, blinding, provider abstraction, and analysis pathways. "
         "The full study should expand scenario coverage, complete human translation "
-        "and cultural validation, increase rater diversity, and apply mixed-effects "
+        "and cultural validation, increase rater diversity, optionally add cloud providers "
+        "under the same protocol, and apply mixed-effects "
         "models for crossed scenario/language/model factors."
     )
     lines.append("")
@@ -589,9 +601,11 @@ def generate_report(
     lines.append("")
     lines.append("- Configuration via environment variables and `config/models*.json`.")
     lines.append("- Dataset validation: `python -m ethiocontexteval.dataset validate`.")
-    lines.append("- Dry run: `python -m ethiocontexteval.runner --dry-run`.")
-    lines.append("- Tests: `pytest`.")
-    lines.append("- No AWS credentials are stored in the repository.")
+    lines.append(
+        "- Dry run: `python -m ethiocontexteval.runner --provider mock|ollama|bedrock --dry-run`."
+    )
+    lines.append("- Tests: `pytest` (MockProvider; no cloud required).")
+    lines.append("- No cloud credentials are stored in the repository.")
     if generations_meta:
         lines.append("")
         lines.append("Generation metadata:")

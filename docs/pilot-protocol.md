@@ -5,18 +5,19 @@
 Technical and methodological readiness pilot for EthioContextEval.
 
 - 12 English master scenarios
-- Multilingual template with `am`/`om` pending
-- Up to 2 Bedrock models × 2 runs
+- Multilingual template with `am`/`om` pending human translation
+- Up to 2 **local** candidate models × 2 runs (Ollama)
 - Human ratings after blinding
+- Bedrock retained as **optional future** provider (not required now)
 
 ## Preconditions
 
-1. Python 3.10+ venv with package installed
+1. Python 3.10+ venv with package installed (`pip install -e ".[dev]"`)
 2. Dataset validates
-3. AWS credentials configured via CLI/env/role (not in repo)
-4. Bedrock model access in the chosen region verified
+3. **For local pilot:** Ollama installed, daemon running, candidate models pulled **manually**
+4. **For future Bedrock:** `pip install -e ".[aws]"`, AWS credentials, Bedrock model access
 
-## Steps
+## Steps (local Ollama)
 
 ### 1. Environment check
 
@@ -30,57 +31,53 @@ Technical and methodological readiness pilot for EthioContextEval.
 python -m ethiocontexteval.dataset validate data\scenarios.jsonl
 ```
 
-### 3. Discover models
+### 3. Provider health and models
 
 ```powershell
-python -m ethiocontexteval.models list
-python -m ethiocontexteval.models check
+python -m ethiocontexteval.models health --provider ollama
+python -m ethiocontexteval.models list --provider ollama
+python -m ethiocontexteval.models check --provider ollama --config config\models.local.json
 ```
 
-### 4. Dry run (mandatory before paid calls)
+### 4. Dry run (mandatory before inference)
 
 ```powershell
-python -m ethiocontexteval.runner --dry-run
+python -m ethiocontexteval.runner --provider ollama --config config\models.local.json --dry-run
 ```
-
-Confirm expected API request count.
 
 ### 5. Execute generations (explicit only)
 
 ```powershell
-python -m ethiocontexteval.runner --execute
+.\scripts\run_local_pilot.ps1
+# or:
+python -m ethiocontexteval.runner --provider ollama --config config\models.local.json --execute
 ```
 
-Or use `.\scripts\run_pilot.ps1` which requires confirmation.
+### 6. Anonymize / rate / analyze
 
-### 6. Anonymize
+Same as before: `anonymize` → human_evaluation template → fill ratings → `analysis`.
+
+## Mock / CI
 
 ```powershell
-python -m ethiocontexteval.anonymize results\raw\generations_TIMESTAMP.jsonl
+python -m ethiocontexteval.runner --provider mock --config config\models.mock.json --dry-run
 ```
 
-### 7. Rating template
+## Optional future Bedrock
 
 ```powershell
-python -m ethiocontexteval.human_evaluation template results\blinded\blinded_responses_TIMESTAMP.csv
+pip install -e ".[aws]"
+python -m ethiocontexteval.models list --provider bedrock
+python -m ethiocontexteval.runner --provider bedrock --config config\models.example.json --dry-run
 ```
 
-### 8. Analyze (after ratings exist)
-
-```powershell
-python -m ethiocontexteval.analysis path\to\ratings.csv --mapping results\raw\blind_mapping_TIMESTAMP.csv
-```
-
-### 9. Template report anytime
-
-```powershell
-python -m ethiocontexteval.analysis --report-only-template
-```
+Only claim Bedrock usage when generations JSONL records `provider: "bedrock"`.
 
 ## Stop conditions
 
 - Stop if dataset invalid
-- Stop if models unavailable in region
-- Stop if cost/rate limits exceeded
+- Stop if provider unhealthy or models missing
+- Do not auto-download large models
 - Do not publish blind mappings
 - Do not interpret results before human validation
+- Do not treat mock outputs as experimental findings

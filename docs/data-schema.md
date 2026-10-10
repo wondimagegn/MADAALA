@@ -35,6 +35,7 @@ Each line is one JSON object.
 | `domain` | string |
 | `language` | string |
 | `variant` | string |
+| `provider` | string (`mock` \| `ollama` \| `bedrock`) |
 | `model_id` | string |
 | `model_name` | string |
 | `run` | int |
@@ -46,9 +47,11 @@ Each line is one JSON object.
 | `input_tokens` | int/null |
 | `output_tokens` | int/null |
 | `total_tokens` | int/null |
+| `finish_reason` | string/null |
 | `timestamp` | ISO-8601 |
 | `error` | string/null |
 | `status` | `ok` \| `error` |
+| `provider_metadata` | object |
 
 ## Blinded CSV (`results/blinded/blinded_responses_*.csv`)
 
@@ -57,7 +60,7 @@ Each line is one JSON object.
 
 ## Private mapping (`results/raw/blind_mapping_*.csv`)
 
-`blind_id, response_id, model_id, model_name, scenario_id, language, run`  
+`blind_id, response_id, provider, model_id, model_name, scenario_id, language, run`  
 **Do not publish.**
 
 ## Ratings CSV (`results/ratings/*.csv`)

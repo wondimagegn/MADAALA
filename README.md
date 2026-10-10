@@ -11,12 +11,24 @@ University research prototype supporting an Amazon Research Awards proposal prep
 
 ## Objective
 
-Build a reproducible pipeline to evaluate generative AI behavior on context-sensitive tasks relevant to Ethiopia, with **human** translation validation and **human** rating — not automatic scores alone.
+Build a **provider-independent**, reproducible pipeline to evaluate generative AI on context-sensitive tasks relevant to Ethiopia, with **human** translation validation and **human** rating — not automatic scores alone.
+
+## Provider modes
+
+| Provider | Purpose |
+|----------|---------|
+| **mock** | Development, unit tests, GitHub Actions (synthetic text; **not** research results) |
+| **ollama** | **Current feasibility pilot** — local open-weight models on Windows |
+| **bedrock** | **Optional / future** — funded cloud evaluation when AWS research access is available |
+
+> The preliminary feasibility pilot uses locally hosted open-weight generative models through Ollama. EthioContextEval is designed as a provider-independent evaluation framework. Amazon Bedrock integration is maintained as an optional provider and is planned for the funded study, subject to research infrastructure and AWS access.
+
+**Do not** state that AWS Bedrock or Amazon Nova was used in the pilot unless `results/raw/` generations actually record that provider.
 
 ## Research questions (pilot)
 
-1. Can we run a matched multilingual evaluation cell (scenario × language × model × run) on Amazon Bedrock with full provenance?
-2. How do models behave on Ethiopian-context tasks in **English** (masters), with Amharic and Afaan Oromo gated until expert translation?
+1. Can we run a matched evaluation cell (scenario × language × model × run) with full provenance, independent of cloud vendor?
+2. How do selected **local** open-weight models behave on Ethiopian-context tasks in **English** (masters), with Amharic and Afaan Oromo gated until expert translation?
 3. What parity gaps and error types appear under blinded human evaluation?
 
 ## Languages
@@ -31,39 +43,39 @@ Build a reproducible pipeline to evaluate generative AI behavior on context-sens
 
 ## Pilot versus full study
 
-| | Pilot (this repo) | Full EthioContextEval |
-|--|-------------------|------------------------|
+| | Feasibility pilot (now) | Full EthioContextEval |
+|--|-------------------------|------------------------|
+| Compute | Local Ollama (no AWS required) | May add Bedrock / other providers |
 | Scenarios | 12 masters | Expanded bank + variants |
 | Languages | EN executable; AM/OM pending | Expert-validated EN/AM/OM |
-| Models | Configurable (e.g., Nova Lite/Pro **if available**) | Broader model set |
 | Statistics | Descriptive, LPG, bootstrap, Wilcoxon (exploratory) | Mixed-effects, powered design |
-| Claims | Feasibility & methodology | Scientific benchmark claims |
+| Claims | Tooling & methodology readiness | Scientific benchmark claims |
 
-This pilot demonstrates **technical and methodological readiness**. It is **not** the final scientific benchmark. **No experimental results should be interpreted until human validation is completed.**
+**No experimental results should be interpreted until human validation is completed.**
 
 ## Methodology (summary)
 
-1. Author English master scenarios across education, public services, business/finance, and Ethiopian contextual reasoning.
-2. Validate JSONL schema and block untranslated prompts from execution.
-3. Discover Bedrock foundation models; verify configured IDs.
-4. Generate with Bedrock Runtime **Converse** (default temperature `0`, max tokens `500`, runs `2`).
-5. Blind responses for raters; keep model mapping private.
-6. Rate on correctness, context fidelity, instruction following, language quality, usefulness, safety (+ error codes E1–E10).
-7. Compute language parity gaps and pilot statistics; write reports only from real artifacts.
+1. Author English master scenarios (education, public services, business/finance, Ethiopian contextual reasoning).
+2. Validate JSONL; block untranslated prompts.
+3. Select provider (`mock` / `ollama` / `bedrock`); health-check; verify models (**no auto-download** for Ollama).
+4. Generate with normalized result schema; write JSONL incrementally.
+5. Blind responses (hide provider + model id).
+6. Human ratings (1–5 + error codes).
+7. Metrics/statistics/report from **real** artifacts only.
 
 Details: [`docs/methodology.md`](docs/methodology.md), [`docs/pilot-protocol.md`](docs/pilot-protocol.md).
 
 ## Repository structure
 
 ```
-config/                 Model configuration examples
-data/                   Scenario JSONL + data README
+config/                 models.local.json (Ollama), models.example.json (Bedrock optional), models.mock.json
+data/                   Scenario JSONL
 docs/                   Methodology, schema, ethics, guidelines
-reports/                Generated pilot reports
-results/                raw / blinded / ratings / analysis
-scripts/                PowerShell environment + pilot workflow
-src/ethiocontexteval/   Python package
-tests/                  pytest suite (no Bedrock calls required)
+src/ethiocontexteval/
+  providers/            base, mock, ollama, bedrock
+  ...                   dataset, runner, anonymize, metrics, analysis
+scripts/                check_environment.ps1, run_local_pilot.ps1
+tests/                  pytest (no cloud / no live Ollama required)
 ```
 
 ## Windows setup
@@ -73,53 +85,54 @@ git clone https://github.com/wondimagegn/ethiocontexteval.git
 cd ethiocontexteval
 
 python -m venv .venv
-# If activation is blocked (session only — do not weaken machine policy permanently):
+# If activation is blocked (session only):
 # Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 .\.venv\Scripts\Activate.ps1
 
 python -m pip install --upgrade pip
 pip install -e ".[dev]"
-# alternatively: pip install -r requirements-dev.txt && pip install -e .
 ```
 
-Copy environment template (optional):
+Optional future AWS extras (not required for local pilot):
 
 ```powershell
-Copy-Item .env.example .env
-# Edit .env for region/token settings only — never commit .env
+pip install -e ".[aws]"
 ```
 
-### AWS configuration
+### Ollama (local pilot)
 
-Credentials must **not** appear in source code or git.
-
-```powershell
-aws configure
-aws sts get-caller-identity
-aws bedrock list-foundation-models --region us-east-1
-```
-
-Application defaults:
-
-- Region: `AWS_REGION` or `AWS_DEFAULT_REGION` or `us-east-1`
-- Models: `config/models.example.json` (copy to `config/models.json` to override)
-
-Enable model access in the Amazon Bedrock console for your account/region.
-
-### Environment check
+1. Install Ollama for Windows from the official distribution.
+2. Ensure the local API is available at `http://localhost:11434` (default).
+3. **Manually** pull candidate models if needed, for example:
+   ```powershell
+   ollama pull qwen2.5:7b
+   ollama pull gemma3:4b
+   ```
+   On limited hardware consider `qwen2.5:3b`, `llama3.2:3b`, or `gemma3:4b`.
+4. This repository **does not** auto-download models and makes **no** claim that candidates perform well on Amharic or Afaan Oromo.
 
 ```powershell
 .\scripts\check_environment.ps1
+python -m ethiocontexteval.models health --provider ollama
+python -m ethiocontexteval.models list --provider ollama
 ```
 
-## How to run tests
+### Optional Amazon Bedrock (funded path)
 
 ```powershell
-pytest
+pip install -e ".[aws]"
+aws configure   # or IAM role; never commit keys
+python -m ethiocontexteval.models list --provider bedrock
+```
+
+## Tests
+
+```powershell
+pytest -m "not integration"
 ruff check src tests
 ```
 
-CI runs the same checks **without** AWS credentials or Bedrock calls.
+CI uses **MockProvider** only — no Ollama, no AWS, no secrets.
 
 ## Dataset validation
 
@@ -128,52 +141,29 @@ python -m ethiocontexteval.dataset validate data\scenarios.jsonl
 python -m ethiocontexteval.dataset summary data\scenarios.jsonl
 ```
 
-## Bedrock model discovery
+## Dry run (no inference)
 
 ```powershell
-python -m ethiocontexteval.models list
-python -m ethiocontexteval.models check
+python -m ethiocontexteval.runner --provider ollama --config config\models.local.json --dry-run
+# CI / offline:
+python -m ethiocontexteval.runner --provider mock --config config\models.mock.json --dry-run
 ```
 
-## Dry run (no paid calls)
+Default local plan (when two models enabled): **12 × 2 × 2 = 48** generations (English only).
+
+## Execute local pilot (explicit confirmation)
 
 ```powershell
-python -m ethiocontexteval.runner --dry-run
+.\scripts\run_local_pilot.ps1
+# or:
+python -m ethiocontexteval.runner --provider ollama --config config\models.local.json --execute
 ```
 
-With default config and current English-only executable set:
-
-**12 scenarios × 2 models × 2 runs = 48** expected Bedrock requests  
-(Full multilingual cell later: up to **144**.)
-
-## Real experiment (explicit confirmation)
-
-```powershell
-# Recommended wrapper (prompts for EXECUTE):
-.\scripts\run_pilot.ps1
-
-# Or direct:
-python -m ethiocontexteval.runner --execute
-```
-
-## Anonymization
+## Anonymization, rating, analysis
 
 ```powershell
 python -m ethiocontexteval.anonymize results\raw\generations_TIMESTAMP.jsonl
-```
-
-## Human rating
-
-```powershell
 python -m ethiocontexteval.human_evaluation template results\blinded\blinded_responses_TIMESTAMP.csv
-python -m ethiocontexteval.human_evaluation taxonomy
-```
-
-Guidelines: [`docs/annotation-guidelines.md`](docs/annotation-guidelines.md).
-
-## Analysis & report
-
-```powershell
 python -m ethiocontexteval.analysis --report-only-template
 python -m ethiocontexteval.analysis path\to\ratings.csv --mapping results\raw\blind_mapping_TIMESTAMP.csv
 ```
@@ -182,9 +172,9 @@ python -m ethiocontexteval.analysis path\to\ratings.csv --mapping results\raw\bl
 
 - No credentials in repository
 - No fabricated Amharic/Oromo translations or results
-- Blinded human evaluation
-- Uncertainty and hallucination avoidance emphasized in scenarios
-- Clear pilot limitations in every analysis/report path
+- Blinded human evaluation (provider-blind)
+- Mock outputs never presented as experimental findings
+- Clear pilot limitations in analysis/report paths
 
 See [`docs/ethics-and-data-governance.md`](docs/ethics-and-data-governance.md).
 

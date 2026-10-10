@@ -1,7 +1,11 @@
-boto3>=1.34.0
+# Core runtime (local Ollama / mock pilot — no AWS required)
 pandas>=2.0.0
 numpy>=1.24.0
 scipy>=1.11.0
 statsmodels>=0.14.0
 python-dotenv>=1.0.0
 matplotlib>=3.7.0
+
+# Optional Amazon Bedrock (funded/cloud path):
+#   pip install -e ".[aws]"
+#   boto3>=1.34.0

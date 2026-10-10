@@ -69,6 +69,7 @@ def anonymize_generations(
         map_row = {
             "blind_id": blind_id,
             "response_id": row.get("response_id"),
+            "provider": row.get("provider"),
             "model_id": row.get("model_id"),
             "model_name": row.get("model_name"),
             "scenario_id": row.get("scenario_id"),
@@ -107,6 +108,7 @@ def write_mapping_csv(path: Path, rows: Sequence[dict[str, Any]]) -> None:
     fieldnames = [
         "blind_id",
         "response_id",
+        "provider",
         "model_id",
         "model_name",
         "scenario_id",

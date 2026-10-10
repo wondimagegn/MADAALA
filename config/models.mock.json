@@ -1,0 +1,16 @@
+{
+  "provider": "mock",
+  "models": [
+    {
+      "name": "mock-a",
+      "model_id": "mock-model-a",
+      "enabled": true
+    },
+    {
+      "name": "mock-b",
+      "model_id": "mock-model-b",
+      "enabled": true
+    }
+  ],
+  "notes": "Synthetic models for CI and offline tests. Outputs are NOT experimental research results."
+}

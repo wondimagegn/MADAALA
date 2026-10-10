@@ -22,7 +22,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Install package and dev dependencies
+      - name: Install package and dev dependencies (no AWS required)
         run: |
           python -m pip install --upgrade pip
           pip install -e ".[dev]"
@@ -30,16 +30,25 @@ jobs:
       - name: Ruff lint
         run: ruff check src tests
 
-      - name: Pytest
-        run: pytest
+      - name: Pytest (mock provider only; no Ollama/AWS)
+        run: pytest -m "not integration"
+        env:
+          ETHIOEVAL_PROVIDER: mock
+          AWS_ACCESS_KEY_ID: ""
+          AWS_SECRET_ACCESS_KEY: ""
+          AWS_SESSION_TOKEN: ""
 
       - name: Validate dataset
         run: python -m ethiocontexteval.dataset validate data/scenarios.jsonl
 
-      - name: Dry-run planner (no AWS)
-        run: python -m ethiocontexteval.runner --dry-run
+      - name: Dry-run with MockProvider
+        run: >
+          python -m ethiocontexteval.runner
+          --provider mock
+          --config config/models.mock.json
+          --dry-run
         env:
-          # Ensure no accidental credential reliance in CI
+          ETHIOEVAL_PROVIDER: mock
           AWS_ACCESS_KEY_ID: ""
           AWS_SECRET_ACCESS_KEY: ""
           AWS_SESSION_TOKEN: ""
