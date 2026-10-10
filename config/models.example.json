@@ -1,0 +1,15 @@
+{
+  "models": [
+    {
+      "name": "nova-lite",
+      "model_id": "amazon.nova-lite-v1:0",
+      "enabled": true
+    },
+    {
+      "name": "nova-pro",
+      "model_id": "amazon.nova-pro-v1:0",
+      "enabled": true
+    }
+  ],
+  "notes": "Copy to config/models.json for local overrides. Verify IDs with: python -m ethiocontexteval.models list. Do not assume Nova models are available in every region."
+}

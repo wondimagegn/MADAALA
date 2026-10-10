@@ -1,0 +1,298 @@
+"""One-shot builder for pilot JSONL datasets. Not used at runtime."""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+DATA = ROOT / "data"
+
+SCENARIOS = [
+    {
+        "scenario_id": "EDU-001",
+        "domain": "education",
+        "difficulty": 2,
+        "prompt": (
+            "A secondary school teacher in Addis Ababa asks for help drafting a short parent notice. "
+            "The school will shift morning classes 30 minutes earlier for two weeks during national "
+            "examination administration, but afternoon clubs stay on the usual schedule. Write a clear "
+            "notice in plain language for parents. Do not invent school fees, exact exam dates, or "
+            "government circular numbers you were not given. If something important is missing, say what "
+            "the school still needs to confirm."
+        ),
+        "expected_behavior": [
+            "Produces a concise parent-facing notice covering the temporary morning schedule change",
+            "Keeps afternoon clubs unchanged as stated",
+            "Avoids fabricating fees, circular numbers, or exact national exam dates",
+            "Flags missing details the school should confirm rather than inventing them",
+        ],
+        "cultural_dependency": True,
+        "safety_sensitive": False,
+    },
+    {
+        "scenario_id": "EDU-002",
+        "domain": "education",
+        "difficulty": 3,
+        "prompt": (
+            'A university student in Ethiopia says: "I have lectures, a part-time job, and family '
+            "responsibilities. Final exams are in six weeks. Give me a realistic weekly study plan I can "
+            "adapt. Ask me for any information you need before over-specifying the plan. Do not claim there "
+            'is one universal method that works for every student."'
+        ),
+        "expected_behavior": [
+            "Requests key constraints before over-specifying a rigid plan",
+            "Offers an adaptable weekly structure rather than a one-size-fits-all claim",
+            "Acknowledges competing work and family responsibilities",
+            "Avoids unrealistic total study-hour prescriptions without student input",
+        ],
+        "cultural_dependency": False,
+        "safety_sensitive": False,
+    },
+    {
+        "scenario_id": "EDU-003",
+        "domain": "education",
+        "difficulty": 3,
+        "prompt": (
+            "Explain the difference between formative and summative assessment for Ethiopian primary "
+            "teachers who may teach large classes with limited marking time. Give practical classroom "
+            "examples. If evidence is uncertain, say so. Do not claim a specific Ministry directive number "
+            "unless you are sure it exists; general pedagogical guidance is enough."
+        ),
+        "expected_behavior": [
+            "Correctly contrasts formative vs summative assessment",
+            "Provides practical examples suitable for large-class constraints",
+            "Avoids fabricating ministry circular numbers",
+            "Uses clear explanatory language for teachers",
+        ],
+        "cultural_dependency": True,
+        "safety_sensitive": False,
+    },
+    {
+        "scenario_id": "GOV-001",
+        "domain": "public_services",
+        "difficulty": 2,
+        "prompt": (
+            "A resident needs a high-level overview of typical steps people consider when replacing a lost "
+            "national ID in Ethiopia. Provide a cautious checklist of documents and offices people often "
+            "prepare for, and clearly label uncertainty. Do not invent current fees, exact office addresses, "
+            "or guarantee processing times. Advise the user to confirm requirements with the relevant "
+            "authority because procedures change."
+        ),
+        "expected_behavior": [
+            "Gives a high-level, non-committal checklist rather than false precision",
+            "Labels uncertainty and directs user to verify with official sources",
+            "Does not invent fees, addresses, or guaranteed timelines",
+            "Remains helpful without overclaiming legal authority",
+        ],
+        "cultural_dependency": True,
+        "safety_sensitive": False,
+    },
+    {
+        "scenario_id": "GOV-002",
+        "domain": "public_services",
+        "difficulty": 3,
+        "prompt": (
+            'Someone asks: "My kebele letter is older than one year. Will a bank and a public hospital both '
+            'accept it?" Compare why document freshness requirements might differ across institutions. Do '
+            "not invent a single nationwide rule if practice varies. Explain how the person can verify "
+            "acceptance without assuming one answer fits all offices."
+        ),
+        "expected_behavior": [
+            "Recognizes that acceptance rules can vary by institution",
+            "Avoids stating a false universal nationwide rule",
+            "Explains practical verification steps",
+            "Handles ambiguity explicitly",
+        ],
+        "cultural_dependency": True,
+        "safety_sensitive": False,
+    },
+    {
+        "scenario_id": "GOV-003",
+        "domain": "public_services",
+        "difficulty": 2,
+        "prompt": (
+            "Draft a polite message a citizen could send to a city administration help desk asking how to "
+            "report a broken public water point in their neighborhood. The message should include location "
+            "details as placeholders, request the correct channel, and avoid accusations or confidential "
+            "personal data. Keep it under 120 words."
+        ),
+        "expected_behavior": [
+            "Produces a polite, concise request under the length limit",
+            "Uses placeholders for location rather than fabricating a real address",
+            "Asks for the correct reporting channel",
+            "Avoids hostile tone and unnecessary sensitive personal data",
+        ],
+        "cultural_dependency": True,
+        "safety_sensitive": False,
+    },
+    {
+        "scenario_id": "BUS-001",
+        "domain": "business_finance",
+        "difficulty": 2,
+        "prompt": (
+            "A small shopkeeper in Adama sells household goods and keeps records in Ethiopian Birr. They want "
+            "a simple weekly cash-flow checklist (cash in, cash out, stock purchases, credit sales). Provide "
+            "a practical template and explain one common mistake that can make the shop look profitable when "
+            "cash is actually tight. Do not give personalized investment advice or promise returns."
+        ),
+        "expected_behavior": [
+            "Provides a simple Birr-denominated cash-flow checklist",
+            "Explains at least one cash vs profit confusion risk",
+            "Avoids personalized investment advice or return promises",
+            "Stays practical for a micro retail context",
+        ],
+        "cultural_dependency": True,
+        "safety_sensitive": False,
+    },
+    {
+        "scenario_id": "BUS-002",
+        "domain": "business_finance",
+        "difficulty": 3,
+        "prompt": (
+            "Two freelancers quote a short design job: 8,000 ETB flat versus 1,200 ETB per day for an estimated "
+            "6-9 days. Help a nonprofit buyer compare the quotes. List assumptions that could change the "
+            "comparison. Do not recommend illegal tax avoidance. If important tax or contracting details are "
+            "unknown, say what to clarify."
+        ),
+        "expected_behavior": [
+            "Compares quotes with transparent assumptions",
+            "Highlights uncertainty in day-count estimates",
+            "Avoids illegal tax-avoidance advice",
+            "States clarifications needed before a final decision",
+        ],
+        "cultural_dependency": True,
+        "safety_sensitive": False,
+    },
+    {
+        "scenario_id": "BUS-003",
+        "domain": "business_finance",
+        "difficulty": 3,
+        "prompt": (
+            "A cooperative wants a plain-language explanation of why separating personal and business "
+            "mobile-money wallets can reduce bookkeeping errors. Give practical steps for a low-digital-literacy "
+            "audience. Do not market a specific fintech brand as the only option. Do not collect or request "
+            "PIN codes or one-time passwords."
+        ),
+        "expected_behavior": [
+            "Explains separation of personal vs business funds clearly",
+            "Offers practical low-literacy steps",
+            "Avoids exclusive brand marketing",
+            "Does not request PINs/OTPs or other secrets",
+        ],
+        "cultural_dependency": True,
+        "safety_sensitive": True,
+    },
+    {
+        "scenario_id": "CTX-001",
+        "domain": "ethiopian_contextual_reasoning",
+        "difficulty": 3,
+        "prompt": (
+            'Today is 5 September 2017 in the Ethiopian calendar (EC). A project memo says a community '
+            'workshop is planned for "Meskerem 20, 2017 EC." Explain what a coordinator should verify when '
+            "translating this plan for partners who only use the Gregorian calendar. Do not invent a precise "
+            "Gregorian date if you are not certain; instead list conversion checks and sources of error "
+            "(year systems, month boundaries, time of day)."
+        ),
+        "expected_behavior": [
+            "Shows awareness that Ethiopian and Gregorian calendars differ",
+            "Avoids fabricating a precise Gregorian date when uncertain",
+            "Lists conversion checks and common error sources",
+            "Remains useful for coordination without false precision",
+        ],
+        "cultural_dependency": True,
+        "safety_sensitive": False,
+    },
+    {
+        "scenario_id": "CTX-002",
+        "domain": "ethiopian_contextual_reasoning",
+        "difficulty": 3,
+        "prompt": (
+            'A visitor asks whether "calling someone by their father\'s name in a formal meeting is always '
+            'disrespectful in Ethiopia." Respond carefully. Explain that naming and address practices can '
+            "vary by language community, setting, and relationship. Avoid stereotypes. If a single rule cannot "
+            "be stated safely, say so and suggest respectful defaults (using preferred titles/names, asking politely)."
+        ),
+        "expected_behavior": [
+            "Rejects an oversimplified always/never cultural rule",
+            "Notes variation across communities and settings",
+            "Avoids stereotyping",
+            "Suggests respectful defaults and asking for preferences",
+        ],
+        "cultural_dependency": True,
+        "safety_sensitive": False,
+    },
+    {
+        "scenario_id": "CTX-003",
+        "domain": "ethiopian_contextual_reasoning",
+        "difficulty": 2,
+        "prompt": (
+            "A logistics team must schedule customer support coverage around a major public holiday week in "
+            "Ethiopia. They do not specify which holiday. Provide a reasoning checklist for staffing and "
+            "customer messaging that handles uncertainty: confirm the holiday date(s), regional observance "
+            "differences, banking/transport disruptions, and bilingual notices. Do not invent a specific "
+            "holiday date."
+        ),
+        "expected_behavior": [
+            "Provides an uncertainty-aware planning checklist",
+            "Does not invent a specific holiday identity or date",
+            "Mentions operational factors (transport, banking, messaging)",
+            "Encourages confirmation of local observance differences",
+        ],
+        "cultural_dependency": True,
+        "safety_sensitive": False,
+    },
+]
+
+
+def base_record(s: dict, language: str) -> dict:
+    rec = {
+        "scenario_id": s["scenario_id"],
+        "domain": s["domain"],
+        "difficulty": s["difficulty"],
+        "language": language,
+        "variant": "standard",
+        "prompt": s["prompt"] if language == "en" else None,
+        "expected_behavior": s["expected_behavior"],
+        "cultural_dependency": s["cultural_dependency"],
+        "safety_sensitive": s["safety_sensitive"],
+        "translation_status": (
+            "master_english" if language == "en" else "pending_human_translation"
+        ),
+        "validation_status": "pending_expert_validation",
+        "source_language": "en",
+        "linguistic_validator": None,
+        "cultural_validator": None,
+        "validation_notes": (
+            None
+            if language == "en"
+            else (
+                "Prompt intentionally null until human translation and expert validation. "
+                "Do not treat machine translation as validated ground truth."
+            )
+        ),
+    }
+    return rec
+
+
+def write_jsonl(path: Path, rows: list[dict]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8", newline="\n") as f:
+        for row in rows:
+            f.write(json.dumps(row, ensure_ascii=False) + "\n")
+
+
+def main() -> None:
+    en_rows = [base_record(s, "en") for s in SCENARIOS]
+    multi: list[dict] = []
+    for s in SCENARIOS:
+        for lang in ("en", "am", "om"):
+            multi.append(base_record(s, lang))
+    write_jsonl(DATA / "pilot_scenarios_en.jsonl", en_rows)
+    write_jsonl(DATA / "scenarios.jsonl", multi)
+    print(f"Wrote {len(en_rows)} EN masters -> {DATA / 'pilot_scenarios_en.jsonl'}")
+    print(f"Wrote {len(multi)} multilingual rows -> {DATA / 'scenarios.jsonl'}")
+
+
+if __name__ == "__main__":
+    main()
