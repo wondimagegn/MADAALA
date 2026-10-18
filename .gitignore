@@ -115,3 +115,21 @@ models_cache/
 *.bin
 *.safetensors
 .python-version
+
+# Local diagnostics and reproducibility outputs
+reports/cleanup-before.txt
+reports/cleanup-removed.txt
+reports/bedrock_inference_profiles.txt
+reports/pilot_environment.txt
+reports/pilot_git_commit.txt
+reports/pilot_requirements.txt
+config/models.bedrock.json
+config/models.local.json
+.audit*/
+_audit*/
+_full_dump/
+_tmp*
+_dump*
+_full*
+_sec*
+tools/

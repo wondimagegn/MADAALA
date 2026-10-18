@@ -24,7 +24,7 @@ Each line is one JSON object.
 
 **Uniqueness:** `(scenario_id, language, variant)` must be unique.
 
-**Executability:** A record is sent to models only if it has a nonempty prompt and a ready translation status (English `master_english` is ready; `am`/`om` require human-translated/validated statuses). Pending translations must keep `prompt: null`.
+**Executability:** A record is sent to models only if it has a nonempty prompt and a ready translation status (English `master_english` is ready; `am`/`om` require human-translated/validated statuses). AI drafts may have nonempty prompts but require --allow-unvalidated for technical testing. Research grade additionally requires validated/expert_validated validation status.
 
 ## Generation JSONL (`results/raw/generations_*.jsonl`)
 
@@ -66,3 +66,5 @@ Each line is one JSON object.
 ## Ratings CSV (`results/ratings/*.csv`)
 
 See `human_evaluation.TEMPLATE_FIELDS` and `docs/annotation-guidelines.md`.
+
+Generation rows preserve translation_status_at_run, validation_status_at_run, research_grade and technical_pilot.

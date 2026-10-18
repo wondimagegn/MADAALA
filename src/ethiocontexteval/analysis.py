@@ -71,6 +71,7 @@ def paired_language_comparison(
 
     Uses Wilcoxon signed-rank when pairs >= 6; otherwise reports descriptive only.
     """
+
     def key_of(r: dict[str, Any]) -> tuple:
         return tuple(str(r.get(k) or "") for k in group_keys)
 
@@ -231,8 +232,10 @@ def krippendorff_alpha(
     for c in range(m):
         for k in range(m):
             if n_total > 1:
-                e[c, k] = n_c[c] * n_c[k] / (n_total - 1) if c != k else n_c[c] * (n_c[c] - 1) / (
-                    n_total - 1
+                e[c, k] = (
+                    n_c[c] * n_c[k] / (n_total - 1)
+                    if c != k
+                    else n_c[c] * (n_c[c] - 1) / (n_total - 1)
                 )
 
     # Ordinal distance
@@ -403,11 +406,7 @@ def generate_figures(ratings: Sequence[dict[str, Any]], figures_dir: Path) -> li
         plot_labels = []
         plot_vals = []
         for mid in models:
-            subset = [
-                r
-                for r in ratings
-                if str(r.get("model_id") or r.get("model_name")) == mid
-            ]
+            subset = [r for r in ratings if str(r.get("model_id") or r.get("model_name")) == mid]
             scores = mean_score_by_language(subset)
             gaps = language_parity_gap(scores)
             for lang, gap in gaps.items():
@@ -482,7 +481,9 @@ def generate_report(
     lines.append(
         "- **Languages:** English (master), Amharic and Afaan Oromo (human translation pending)."
     )
-    lines.append("- **Domains:** education, public services, business/finance, Ethiopian contextual reasoning.")
+    lines.append(
+        "- **Domains:** education, public services, business/finance, Ethiopian contextual reasoning."
+    )
     lines.append("- **Design cell:** scenarios x languages x models x repeated generations.")
     lines.append(
         "- **Inference:** provider-independent (`mock` / `ollama` / optional `bedrock`); "
@@ -572,7 +573,9 @@ def generate_report(
     lines.append("## Limitations")
     lines.append("")
     lines.append("- Small pilot scenario count (12 masters).")
-    lines.append("- Amharic and Afaan Oromo prompts require expert translation before multilingual claims.")
+    lines.append(
+        "- Amharic and Afaan Oromo prompts require expert translation before multilingual claims."
+    )
     lines.append("- Limited statistical power; p-values are exploratory.")
     lines.append(
         "- Local model availability depends on hardware and manual Ollama installs; "

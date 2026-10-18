@@ -49,7 +49,7 @@ def test_multilingual_template_valid_and_pending_not_executable():
     assert all(s.language == "en" for s in exe)
     pending = [s for s in scenarios if s.language in {"am", "om"}]
     assert len(pending) == 24
-    assert all(s.prompt is None for s in pending)
+    assert all(s.prompt for s in pending)
     assert all(not s.is_executable() for s in pending)
 
 
@@ -94,8 +94,9 @@ def test_untranslated_with_prompt_rejected(tmp_path: Path):
     }
     path = tmp_path / "bad_am.jsonl"
     path.write_text(json.dumps(row) + "\n", encoding="utf-8")
-    with pytest.raises(DatasetValidationError):
-        load_scenarios(path, strict=True)
+    scenarios = load_scenarios(path, strict=True)
+    assert not scenarios[0].is_executable()
+    assert executable_scenarios(scenarios, allow_unvalidated=True) == scenarios
 
 
 def test_empty_expected_behavior_rejected(tmp_path: Path):

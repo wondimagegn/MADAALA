@@ -62,6 +62,7 @@ class BedrockClient:
         self,
         region_name: str = "us-east-1",
         *,
+        profile_name: str | None = None,
         max_retries: int = 4,
         base_backoff_seconds: float = 1.0,
         max_backoff_seconds: float = 20.0,
@@ -69,13 +70,20 @@ class BedrockClient:
         control_client: Any | None = None,
     ) -> None:
         self.region_name = region_name
+        self.profile_name = profile_name
         self.max_retries = max_retries
         self.base_backoff_seconds = base_backoff_seconds
         self.max_backoff_seconds = max_backoff_seconds
-        self._runtime = runtime_client or boto3.client(
-            "bedrock-runtime", region_name=region_name
-        )
-        self._control = control_client or boto3.client("bedrock", region_name=region_name)
+        if runtime_client is not None:
+            self._runtime = runtime_client
+        else:
+            session = boto3.Session(profile_name=profile_name, region_name=region_name)
+            self._runtime = session.client("bedrock-runtime")
+        if control_client is not None:
+            self._control = control_client
+        else:
+            session = boto3.Session(profile_name=profile_name, region_name=region_name)
+            self._control = session.client("bedrock")
 
     def list_foundation_models(self, *, by_provider: str | None = None) -> list[dict[str, Any]]:
         """List foundation models via Bedrock control-plane API."""
@@ -111,7 +119,7 @@ class BedrockClient:
         return models
 
     def is_model_available(self, model_id: str) -> bool:
-        """Return True if model_id appears in list_foundation_models (exact or prefix)."""
+        """Return True if model_id appears in list_foundation_models (exact ID)."""
         try:
             models = self.list_foundation_models()
         except RuntimeError:
@@ -119,31 +127,13 @@ class BedrockClient:
         ids = {m["model_id"] for m in models if m.get("model_id")}
         if model_id in ids:
             return True
-        # Some listings omit inference profile suffixes; allow prefix match
-        return any(
-            mid == model_id or mid.startswith(model_id.split(":")[0])
-            for mid in ids
-            if isinstance(mid, str)
-        )
+        return False
 
     def ensure_model_available(self, model_id: str) -> None:
-        """Raise RuntimeError with a clear message if model cannot be confirmed."""
-        models = self.list_foundation_models()
-        ids = [m.get("model_id") for m in models]
-        if model_id in ids:
-            return
-        # softer match
-        base = model_id.split(":")[0]
-        matches = [i for i in ids if isinstance(i, str) and (i == model_id or i.startswith(base))]
-        if matches:
-            return
-        sample = ", ".join(str(i) for i in ids[:8]) if ids else "(none returned)"
-        raise RuntimeError(
-            f"Configured model '{model_id}' was not found among Bedrock foundation models "
-            f"in region '{self.region_name}'. "
-            f"Verify model access in the Bedrock console and that the ID is correct for this region. "
-            f"Sample available IDs: {sample}"
-        )
+        if not self.is_model_available(model_id):
+            raise RuntimeError(
+                f"Model '{model_id}' was not discovered in {self.region_name}. Check the exact ID/region or use --skip-model-check for an independently verified inference profile. Discovery does not establish runtime capacity."
+            )
 
     def converse(
         self,
@@ -203,8 +193,7 @@ class BedrockClient:
             except ClientError as exc:
                 latency = time.perf_counter() - started
                 code = exc.response.get("Error", {}).get("Code", "ClientError")
-                msg = exc.response.get("Error", {}).get("Message", str(exc))
-                last_error = f"{code}: {msg}"
+                last_error = format_aws_error(exc)
                 if code in _RETRYABLE_CODES and attempt <= self.max_retries:
                     _sleep_backoff(
                         attempt,
@@ -224,9 +213,9 @@ class BedrockClient:
                     error=last_error,
                     status="error",
                 )
-            except (BotoCoreError, Exception) as exc:  # noqa: BLE001 — surface as result
+            except (BotoCoreError, Exception) as exc:  # noqa: BLE001 â€” surface as result
                 latency = time.perf_counter() - started
-                last_error = f"{type(exc).__name__}: {exc}"
+                last_error = format_aws_error(exc)
                 if attempt <= self.max_retries and _is_retryable_message(last_error):
                     _sleep_backoff(
                         attempt,
@@ -285,3 +274,18 @@ def _is_retryable_message(message: str) -> bool:
         token in lowered
         for token in ("throttl", "timeout", "temporarily", "unavailable", "too many")
     )
+
+
+def format_aws_error(exc: Exception) -> str:
+    code = type(exc).__name__
+    message = str(exc)
+    if isinstance(exc, ClientError):
+        code = exc.response.get("Error", {}).get("Code", code)
+        message = exc.response.get("Error", {}).get("Message", message)
+    explanations = {
+        "NoCredentialsError": "AWS credentials were not found.",
+        "AccessDeniedException": "AWS credentials are valid but Bedrock access was denied.",
+        "ResourceNotFoundException": "The selected model/profile is not available.",
+        "ThrottlingException": "Check account/model runtime quota (RPM/TPM and daily tokens) in the selected region.",
+    }
+    return f"{code}: {message} {explanations.get(code, '')}".strip()

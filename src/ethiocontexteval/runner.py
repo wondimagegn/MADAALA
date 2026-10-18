@@ -16,6 +16,7 @@ from ethiocontexteval.dataset import (
     DatasetValidationError,
     Scenario,
     executable_scenarios,
+    is_research_grade,
     load_scenarios,
 )
 from ethiocontexteval.providers import ModelProvider, ProviderError, get_provider
@@ -25,13 +26,48 @@ def _utc_stamp() -> str:
     return datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
 
 
+def filter_scenarios(
+    scenarios: Sequence[Scenario],
+    *,
+    scenario_id: str | None = None,
+    language: str | None = None,
+) -> list[Scenario]:
+    """Optionally filter loaded records by scenario_id and/or language."""
+    rows = list(scenarios)
+    if scenario_id is not None:
+        rows = [s for s in rows if s.scenario_id == scenario_id]
+        if not rows:
+            raise ValueError(f"Scenario not found: {scenario_id}")
+    if language is not None:
+        rows = [s for s in rows if s.language == language]
+        if not rows:
+            raise ValueError(f"No records found for language: {language}")
+    return rows
+
+
+def select_models(cfg: PilotConfig, model_id: str | None = None) -> list:
+    """Return enabled models, optionally restricted to a single model_id."""
+    models = cfg.enabled_models()
+    if model_id is None:
+        return models
+    matched = [m for m in models if m.model_id == model_id]
+    if not matched:
+        all_ids = {m.model_id: m for m in cfg.models}
+        if model_id in all_ids and not all_ids[model_id].enabled:
+            raise ValueError(f"Model is disabled: {model_id}")
+        raise ValueError(f"Model not found or not enabled: {model_id}")
+    return matched
+
+
 def plan_requests(
     scenarios: Sequence[Scenario],
     cfg: PilotConfig,
+    *,
+    models: Sequence | None = None,
 ) -> list[dict[str, Any]]:
     """Build the cartesian product of executable scenarios x models x runs."""
-    exe = executable_scenarios(scenarios)
-    models = cfg.enabled_models()
+    exe = executable_scenarios(scenarios, allow_unvalidated=cfg.allow_unvalidated)
+    models = list(models) if models is not None else cfg.enabled_models()
     jobs: list[dict[str, Any]] = []
     for sc in exe:
         for model in models:
@@ -51,7 +87,11 @@ def plan_requests(
     return jobs
 
 
-def _language_skip_summary(scenarios: Sequence[Scenario]) -> dict[str, Any]:
+def _language_skip_summary(
+    scenarios: Sequence[Scenario],
+    *,
+    allow_unvalidated: bool = False,
+) -> dict[str, Any]:
     by_lang: dict[str, list[Scenario]] = {}
     for s in scenarios:
         by_lang.setdefault(s.language, []).append(s)
@@ -60,7 +100,7 @@ def _language_skip_summary(scenarios: Sequence[Scenario]) -> dict[str, Any]:
     skipped: dict[str, str] = {}
     lang_names = {"en": "English", "am": "Amharic", "om": "Afaan Oromo"}
     for lang, rows in sorted(by_lang.items()):
-        exe = [r for r in rows if r.is_executable()]
+        exe = executable_scenarios(rows, allow_unvalidated=allow_unvalidated)
         label = lang_names.get(lang, lang)
         if exe:
             executable_langs.append(label)
@@ -76,14 +116,18 @@ def dry_run_report(
     *,
     provider: ModelProvider | None = None,
     check_models: bool = True,
+    scenario_id: str | None = None,
+    language: str | None = None,
+    model_id: str | None = None,
 ) -> dict[str, Any]:
-    """Validate data and report planned generations without inference."""
+    """Validate dataset + config and report planned generations without inference."""
     path = dataset_path or cfg.dataset_path
     scenarios = load_scenarios(path, strict=True)
-    exe = executable_scenarios(scenarios)
-    jobs = plan_requests(scenarios, cfg)
-    models = cfg.enabled_models()
-    lang_summary = _language_skip_summary(scenarios)
+    scenarios = filter_scenarios(scenarios, scenario_id=scenario_id, language=language)
+    models = select_models(cfg, model_id)
+    exe = executable_scenarios(scenarios, allow_unvalidated=cfg.allow_unvalidated)
+    jobs = plan_requests(scenarios, cfg, models=models)
+    lang_summary = _language_skip_summary(scenarios, allow_unvalidated=cfg.allow_unvalidated)
 
     by_lang: dict[str, int] = {}
     for s in exe:
@@ -94,7 +138,6 @@ def dry_run_report(
     if provider is not None:
         provider_health = provider.health_check()
         if check_models:
-            available_ids = {m.model_id for m in provider.list_models()} if provider_health.get("ok") else set()
             for m in models:
                 entry: dict[str, Any] = {
                     "name": m.name,
@@ -102,19 +145,14 @@ def dry_run_report(
                     "available": None,
                     "note": None,
                 }
-                if not provider_health.get("ok"):
+                try:
+                    entry["available"] = bool(provider.is_model_available(m.model_id))
+                except ProviderError as exc:
                     entry["available"] = False
-                    entry["note"] = provider_health.get("message")
-                else:
-                    try:
-                        provider.ensure_model_available(m.model_id)
-                        entry["available"] = True
-                    except ProviderError as exc:
-                        entry["available"] = False
-                        entry["note"] = str(exc)
-                    # also surface raw membership
-                    if m.model_id not in available_ids and entry["available"]:
-                        entry["note"] = entry.get("note") or "matched via prefix/alias"
+                    entry["note"] = str(exc)
+                except Exception as exc:  # noqa: BLE001
+                    entry["available"] = False
+                    entry["note"] = f"check failed: {exc}"
                 model_status.append(entry)
 
     report = {
@@ -125,54 +163,44 @@ def dry_run_report(
         "executable_by_language": by_lang,
         "executable_languages": lang_summary["executable_languages"],
         "skipped": lang_summary["skipped"],
+        "selected_records": len(exe),
+        "selected_models": len(models),
         "enabled_models": [{"name": m.name, "model_id": m.model_id} for m in models],
         "model_status": model_status,
         "provider_health": provider_health,
         "runs_per_cell": cfg.runs,
         "temperature": cfg.temperature,
         "max_tokens": cfg.max_tokens,
-        "aws_region": cfg.aws_region if cfg.provider == "bedrock" else None,
-        "ollama_base_url": cfg.ollama_base_url if cfg.provider == "ollama" else None,
         "expected_generations": len(jobs),
+        "allow_unvalidated": cfg.allow_unvalidated,
+        "aws_region": cfg.aws_region if cfg.provider == "bedrock" else None,
+        "aws_profile": cfg.aws_profile if cfg.provider == "bedrock" else None,
         "formula": (
-            f"{len(exe)} executable scenarios x {len(models)} models x {cfg.runs} runs "
-            f"= {len(jobs)} generations"
+            f"{len(exe)} executable records Ã— {len(models)} models Ã— "
+            f"{cfg.runs} runs = {len(jobs)}"
         ),
     }
     return report
 
 
 def _print_dry_run(report: dict[str, Any]) -> None:
-    print("=== EthioContextEval dry run (no model inference) ===")
-    print(f"Provider:             {report['provider']}")
-    print(f"Dataset:              {report['dataset']}")
-    print(f"Total records:        {report['total_records']}")
-    print(f"Executable records:   {report['executable_records']}")
-    print(f"Executable languages: {report['executable_languages']}")
-    skipped = report.get("skipped") or {}
-    if skipped:
-        print("Skipped:")
-        for lang, reason in skipped.items():
-            print(f"  - {lang}: {reason}")
-    print(f"Enabled models:       {report['enabled_models']}")
-    if report.get("model_status"):
-        print("Model availability:")
-        for m in report["model_status"]:
-            flag = "available" if m.get("available") else "MISSING/unavailable"
-            extra = f" ({m['note']})" if m.get("note") else ""
-            print(f"  - {m['name']}: {m['model_id']} -> {flag}{extra}")
-    if report.get("provider_health"):
-        ph = report["provider_health"]
-        print(f"Provider health:      ok={ph.get('ok')} — {ph.get('message')}")
-    print(f"Runs per cell:        {report['runs_per_cell']}")
-    print(f"Temperature:          {report['temperature']}")
-    print(f"Max tokens:           {report['max_tokens']}")
-    if report.get("ollama_base_url"):
-        print(f"Ollama base URL:      {report['ollama_base_url']}")
-    if report.get("aws_region"):
-        print(f"AWS region:           {report['aws_region']}")
-    print(f"Expected generations: {report['expected_generations']}")
-    print(f"Plan:                 {report['formula']}")
+    print("=== EthioContextEval dry run ===")
+    for label, key in [
+        ("Provider", "provider"),
+        ("AWS profile", "aws_profile"),
+        ("AWS region", "aws_region"),
+        ("Dataset", "dataset"),
+        ("Selected records", "selected_records"),
+        ("Selected models", "selected_models"),
+        ("Runs", "runs_per_cell"),
+        ("Temperature", "temperature"),
+        ("Max tokens", "max_tokens"),
+        ("Expected generations", "expected_generations"),
+    ]:
+        if report.get(key) is not None:
+            print(f"{label + ':':23} {report[key]}")
+    if report.get("skipped"):
+        print(f"Skipped: {report['skipped']}")
     print("No inference requests were sent.")
 
 
@@ -206,11 +234,13 @@ def _load_completed_keys(path: Path) -> set[tuple[str, str, str, str, str, int]]
 
 
 def create_provider_from_config(cfg: PilotConfig) -> ModelProvider:
-    return get_provider(
-        cfg.provider,
-        region=cfg.aws_region,
-        base_url=cfg.ollama_base_url,
-    )
+    """Instantiate the configured provider backend."""
+    kwargs: dict[str, Any] = {
+        "region": cfg.aws_region,
+    }
+    if cfg.provider == "bedrock" and cfg.aws_profile:
+        kwargs["profile"] = cfg.aws_profile
+    return get_provider(cfg.provider, **kwargs)
 
 
 def run_experiment(
@@ -221,6 +251,9 @@ def run_experiment(
     resume_from: Path | None = None,
     verify_models: bool = True,
     provider: ModelProvider | None = None,
+    scenario_id: str | None = None,
+    language: str | None = None,
+    model_id: str | None = None,
 ) -> Path:
     """
     Execute planned generations and write JSONL incrementally.
@@ -229,7 +262,9 @@ def run_experiment(
     """
     path = dataset_path or cfg.dataset_path
     scenarios = load_scenarios(path, strict=True)
-    jobs = plan_requests(scenarios, cfg)
+    scenarios = filter_scenarios(scenarios, scenario_id=scenario_id, language=language)
+    models = select_models(cfg, model_id)
+    jobs = plan_requests(scenarios, cfg, models=models)
     if not jobs:
         raise RuntimeError("No executable jobs planned. Check dataset translation status.")
 
@@ -241,13 +276,17 @@ def run_experiment(
         )
 
     if verify_models:
-        for m in cfg.enabled_models():
+        for m in models:
             backend.ensure_model_available(m.model_id)
 
     cfg.raw_dir.mkdir(parents=True, exist_ok=True)
     out = output_path or (cfg.raw_dir / f"generations_{_utc_stamp()}.jsonl")
+    out.parent.mkdir(parents=True, exist_ok=True)
+    if resume_from and not resume_from.is_file():
+        raise FileNotFoundError(f"Resume file not found: {resume_from}")
     if resume_from and resume_from.is_file() and resume_from != out:
         out.write_text(resume_from.read_text(encoding="utf-8"), encoding="utf-8")
+    out.parent.mkdir(parents=True, exist_ok=True)
     completed = _load_completed_keys(out)
 
     scenario_map = {(s.scenario_id, s.language, s.variant): s for s in scenarios}
@@ -272,6 +311,8 @@ def run_experiment(
             sc = scenario_map.get((job["scenario_id"], job["language"], job["variant"]))
             prompt = job["prompt"] or (sc.prompt if sc else None)
             response_id = str(uuid.uuid4())
+            research = is_research_grade(sc) if sc is not None else False
+            technical = not research
             row: dict[str, Any] = {
                 "response_id": response_id,
                 "scenario_id": job["scenario_id"],
@@ -285,6 +326,11 @@ def run_experiment(
                 "temperature": cfg.temperature,
                 "max_tokens": cfg.max_tokens,
                 "prompt": prompt,
+                "validation_status": sc.validation_status if sc else None,
+                "validation_status_at_run": sc.validation_status if sc else None,
+                "translation_status_at_run": sc.translation_status if sc else None,
+                "research_grade": research,
+                "technical_pilot": technical,
                 "response": None,
                 "latency_seconds": None,
                 "input_tokens": None,
@@ -303,12 +349,23 @@ def run_experiment(
                 sink.flush()
                 continue
 
-            result = backend.generate(
-                model_id=job["model_id"],
-                prompt=str(prompt),
-                max_tokens=cfg.max_tokens,
-                temperature=cfg.temperature,
-            )
+            try:
+                result = backend.generate(
+                    model_id=job["model_id"],
+                    prompt=str(prompt),
+                    max_tokens=cfg.max_tokens,
+                    temperature=cfg.temperature,
+                )
+            except Exception as exc:
+                from ethiocontexteval.providers import GenerationResult
+
+                result = GenerationResult(
+                    provider=backend.provider_name(),
+                    model_id=job["model_id"],
+                    response=None,
+                    status="error",
+                    error=f"{type(exc).__name__}: {exc}",
+                )
             row.update(
                 {
                     "provider": result.provider,
@@ -344,18 +401,40 @@ def main(argv: Sequence[str] | None = None) -> None:
     parser.add_argument(
         "--provider",
         default=None,
-        choices=["mock", "ollama", "bedrock"],
-        help="Inference provider (default from config / ETHIOEVAL_PROVIDER / ollama)",
+        choices=["mock", "bedrock"],
+        help="Inference provider (default from config / ETHIOEVAL_PROVIDER / bedrock)",
     )
     parser.add_argument(
         "--config",
         default=None,
-        help="Path to models JSON (e.g. config/models.local.json)",
+        help="Path to models JSON (e.g. config/models.bedrock.json)",
     )
     parser.add_argument(
         "--dataset",
         default=None,
         help="Path to scenarios JSONL (default from config)",
+    )
+    parser.add_argument(
+        "--profile",
+        help="AWS profile name for Bedrock authentication",
+    )
+    parser.add_argument(
+        "--scenario",
+        help="Run only the specified scenario_id",
+    )
+    parser.add_argument(
+        "--language",
+        choices=["en", "am", "om"],
+        help="Run only the specified language",
+    )
+    parser.add_argument(
+        "--model",
+        help="Run only the specified configured model_id",
+    )
+    parser.add_argument(
+        "--allow-unvalidated",
+        action="store_true",
+        help="Allow pending/unvalidated language records for technical-pilot execution",
     )
     parser.add_argument(
         "--dry-run",
@@ -383,16 +462,22 @@ def main(argv: Sequence[str] | None = None) -> None:
         help="Do not pre-check model availability",
     )
     parser.add_argument("--region", default=None, help="AWS region (bedrock only)")
-    parser.add_argument(
-        "--ollama-url",
-        default=None,
-        help="Ollama base URL (default http://localhost:11434)",
-    )
     parser.add_argument("--runs", type=int, default=None, help="Override repeated runs")
-    parser.add_argument("--max-tokens", type=int, default=None)
-    parser.add_argument("--temperature", type=float, default=None)
+    parser.add_argument(
+        "--max-tokens", type=int, default=None, help="Maximum output tokens per generation"
+    )
+    parser.add_argument(
+        "--temperature", type=float, default=None, help="Sampling temperature (0 to 1)"
+    )
     args = parser.parse_args(list(argv) if argv is not None else None)
 
+    try:
+        return _run_cli(args, parser)
+    except (ValueError, OSError) as exc:
+        parser.error(str(exc))
+
+
+def _run_cli(args, parser) -> None:
     cfg = load_config(
         dataset_path=args.dataset,
         models_config_path=args.config,
@@ -400,8 +485,10 @@ def main(argv: Sequence[str] | None = None) -> None:
     )
     if args.region:
         cfg.aws_region = args.region
-    if args.ollama_url:
-        cfg.ollama_base_url = args.ollama_url
+    if args.profile:
+        cfg.aws_profile = args.profile
+    if args.allow_unvalidated:
+        cfg.allow_unvalidated = True
     if args.runs is not None:
         cfg.runs = args.runs
     if args.max_tokens is not None:
@@ -411,24 +498,31 @@ def main(argv: Sequence[str] | None = None) -> None:
     if args.dataset:
         cfg.dataset_path = Path(args.dataset)
 
+    if cfg.runs < 1 or cfg.max_tokens < 1 or not 0 <= cfg.temperature <= 1:
+        parser.error("runs and max-tokens must be positive; temperature must be in [0, 1]")
+    if args.dry_run and args.execute:
+        parser.error("Choose either --dry-run or --execute")
+    if not cfg.enabled_models():
+        parser.error("No enabled models in configuration")
+    if cfg.allow_unvalidated:
+        print(
+            "WARNING: Unvalidated language data are being used. These outputs are technical-pilot results only and must not be presented as expert-validated research findings."
+        )
     try:
         if args.dry_run or not args.execute:
             if not args.dry_run and not args.execute:
                 print(
-                    "Neither --dry-run nor --execute specified. "
-                    "Defaulting to --dry-run for safety."
+                    "Neither --dry-run nor --execute specified. Defaulting to --dry-run for safety."
                 )
-            backend = None
-            # For dry-run, try to attach provider health when possible (mock always works)
-            try:
-                backend = create_provider_from_config(cfg)
-            except ProviderError as exc:
-                print(f"Provider init note: {exc}")
+            backend = None  # Offline planning never initializes an AWS session.
             report = dry_run_report(
                 cfg,
                 dataset_path=cfg.dataset_path,
                 provider=backend,
                 check_models=backend is not None and not args.skip_model_check,
+                scenario_id=args.scenario,
+                language=args.language,
+                model_id=args.model,
             )
             _print_dry_run(report)
             sys.exit(0)
@@ -439,6 +533,9 @@ def main(argv: Sequence[str] | None = None) -> None:
             output_path=Path(args.output) if args.output else None,
             resume_from=Path(args.resume_from) if args.resume_from else None,
             verify_models=not args.skip_model_check,
+            scenario_id=args.scenario,
+            language=args.language,
+            model_id=args.model,
         )
         print(f"Done. Results: {out}")
         sys.exit(0)
