@@ -97,18 +97,7 @@ class Scenario:
             return False
         if status.startswith("pending"):
             return False
-        # English master is executable; other languages need explicit ready status
-        if self.language == "en" and status in {"master_english", "validated", "expert_validated"}:
-            return True
-        if self.language != "en" and status in {
-            "human_translated",
-            "expert_validated",
-            "validated",
-        }:
-            return True
-        if status in EXECUTABLE_TRANSLATION and self.language == "en":
-            return True
-        return False
+        return status in EXECUTABLE_TRANSLATION
 
     def to_dict(self) -> dict[str, Any]:
         base = {
@@ -298,18 +287,6 @@ def load_scenarios(path: Path | str, *, strict: bool = True) -> list[Scenario]:
             seen[scenario.key] = line_no
             scenarios.append(scenario)
 
-        # Executable guard: untranslated must not look executable
-        if scenario and scenario.prompt and scenario.language != "en":
-            status = scenario.translation_status.lower()
-            if status in NON_EXECUTABLE_TRANSLATION or status.startswith("pending"):
-                # prompt should ideally be null; warn as error in strict mode
-                if strict:
-                    errors.append(
-                        f"line {line_no}: language '{scenario.language}' has translation_status "
-                        f"'{scenario.translation_status}' but prompt is set; "
-                        "untranslated prompts must be null until human validation"
-                    )
-
     if strict and errors:
         raise DatasetValidationError(errors)
     if not strict and errors:
@@ -338,9 +315,43 @@ def validate_dataset(path: Path | str) -> list[str]:
     return []
 
 
-def executable_scenarios(scenarios: Iterable[Scenario]) -> list[Scenario]:
-    """Filter to records that may be sent to models."""
-    return [s for s in scenarios if s.is_executable()]
+def is_research_grade(scenario: Scenario) -> bool:
+    """True when the record is normally executable (research-path ready)."""
+    return scenario.is_executable() and scenario.validation_status.strip().lower() in {
+        "validated",
+        "expert_validated",
+    }
+
+
+def _technical_pilot_eligible(scenario: Scenario) -> bool:
+    """Whether a non-research-grade row may run under --allow-unvalidated."""
+    if scenario.language not in SUPPORTED_LANGUAGES:
+        return False
+    if scenario.prompt is None or not str(scenario.prompt).strip():
+        return False
+    # Still block empty / missing prompts; allow pending translation statuses.
+    return True
+
+
+def executable_scenarios(
+    scenarios: Iterable[Scenario],
+    *,
+    allow_unvalidated: bool = False,
+) -> list[Scenario]:
+    """Filter to records that may be sent to models.
+
+    By default only research-path executable rows are included.
+    With allow_unvalidated=True, pending/unvalidated language rows that still
+    have a non-empty prompt are included for technical-pilot execution.
+    """
+    out: list[Scenario] = []
+    for s in scenarios:
+        if s.is_executable():
+            out.append(s)
+            continue
+        if allow_unvalidated and _technical_pilot_eligible(s):
+            out.append(s)
+    return out
 
 
 def iter_scenario_summaries(scenarios: Sequence[Scenario]) -> Iterator[dict[str, Any]]:
@@ -404,10 +415,7 @@ def validate_cli(argv: Sequence[str] | None = None) -> int:
     print(f"Dataset: {path}")
     print(f"Total records: {len(scenarios)}")
     for lang in sorted(by_lang):
-        print(
-            f"  {lang}: {by_lang[lang]} total, "
-            f"{exe_by_lang.get(lang, 0)} executable"
-        )
+        print(f"  {lang}: {by_lang[lang]} total, {exe_by_lang.get(lang, 0)} executable")
     return 0
 
 

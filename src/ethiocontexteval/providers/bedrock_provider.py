@@ -1,4 +1,4 @@
-"""Optional Amazon Bedrock provider (funded / cloud study path)."""
+"""Amazon Bedrock provider (primary cloud inference path)."""
 
 from __future__ import annotations
 
@@ -14,24 +14,26 @@ from ethiocontexteval.providers.base import (
 
 class BedrockProvider(ModelProvider):
     """
-    Optional AWS Bedrock backend.
+    AWS Bedrock backend (default inference path).
 
-    Requires optional dependency group: pip install -e ".[aws]"
+    Requires: pip install -e ".[aws]"
     Credentials via standard boto3 chain only — never hard-coded.
-
-    Planned for the funded study when AWS research infrastructure is available.
-    The preliminary local pilot does not require this provider.
     """
 
     def __init__(
         self,
         region_name: str = "us-east-1",
         *,
+        profile_name: str | None = None,
         client: Any | None = None,
         **kwargs: Any,
     ) -> None:
         self.region_name = region_name
+        self.profile_name = profile_name
         self._client = client
+        # Forward profile_name into BedrockClient unless caller overrides.
+        if profile_name is not None:
+            kwargs = {**kwargs, "profile_name": profile_name}
         self._client_kwargs = kwargs
 
     def provider_name(self) -> str:
@@ -44,15 +46,13 @@ class BedrockProvider(ModelProvider):
             from ethiocontexteval.bedrock_client import BedrockClient
         except ImportError as exc:  # pragma: no cover
             raise ProviderError(
-                "Bedrock support requires optional AWS deps. "
-                'Install with: pip install -e ".[aws]"'
+                'Bedrock support requires AWS deps. Install with: pip install -e ".[aws]"'
             ) from exc
         try:
             import boto3  # noqa: F401
         except ImportError as exc:
             raise ProviderError(
-                "boto3 is not installed. Install optional AWS extras: "
-                'pip install -e ".[aws]"'
+                'boto3 is not installed. Install AWS extras: pip install -e ".[aws]"'
             ) from exc
         self._client = BedrockClient(region_name=self.region_name, **self._client_kwargs)
         return self._client
@@ -63,9 +63,10 @@ class BedrockProvider(ModelProvider):
             models = client.list_foundation_models()
             return {
                 "ok": True,
-                "message": f"Bedrock reachable in {self.region_name}",
+                "message": f"Bedrock discovery reachable in {self.region_name}; runtime capacity is unverified",
                 "provider": "bedrock",
                 "region": self.region_name,
+                "profile": self.profile_name,
                 "foundation_model_count": len(models),
             }
         except Exception as exc:  # noqa: BLE001
@@ -74,11 +75,17 @@ class BedrockProvider(ModelProvider):
                 "message": str(exc),
                 "provider": "bedrock",
                 "region": self.region_name,
+                "profile": self.profile_name,
             }
 
     def list_models(self) -> list[ModelInfo]:
         client = self._get_client()
-        raw = client.list_foundation_models()
+        try:
+            raw = client.list_foundation_models()
+        except Exception as exc:
+            from ethiocontexteval.bedrock_client import format_aws_error
+
+            raise ProviderError(format_aws_error(exc)) from exc
         out: list[ModelInfo] = []
         for item in raw:
             mid = item.get("model_id")

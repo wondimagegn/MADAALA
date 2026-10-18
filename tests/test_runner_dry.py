@@ -53,6 +53,6 @@ def test_dry_run_report_with_mock_provider():
 
 
 def test_load_config_prefers_local_models_file():
-    cfg = load_config(models_config_path=ROOT / "config" / "models.local.json")
-    assert cfg.provider == "ollama"
+    cfg = load_config(models_config_path=ROOT / "config" / "models.mock.json")
+    assert cfg.provider == "mock"
     assert len(cfg.enabled_models()) == 2

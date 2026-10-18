@@ -38,10 +38,22 @@ def test_row_composite_mean():
 
 def test_mean_score_by_language():
     rows = [
-        _row(language="en", correctness=5, context_fidelity=5, instruction_following=5,
-             language_quality=5, usefulness=5),
-        _row(language="am", correctness=3, context_fidelity=3, instruction_following=3,
-             language_quality=3, usefulness=3),
+        _row(
+            language="en",
+            correctness=5,
+            context_fidelity=5,
+            instruction_following=5,
+            language_quality=5,
+            usefulness=5,
+        ),
+        _row(
+            language="am",
+            correctness=3,
+            context_fidelity=3,
+            instruction_following=3,
+            language_quality=3,
+            usefulness=3,
+        ),
     ]
     means = mean_score_by_language(rows)
     assert means["en"] == 5.0
@@ -51,8 +63,15 @@ def test_mean_score_by_language():
 def test_mean_score_by_model_and_domain():
     rows = [
         _row(model_id="m1", domain="education"),
-        _row(model_id="m2", domain="education", correctness=2, context_fidelity=2,
-             instruction_following=2, language_quality=2, usefulness=2),
+        _row(
+            model_id="m2",
+            domain="education",
+            correctness=2,
+            context_fidelity=2,
+            instruction_following=2,
+            language_quality=2,
+            usefulness=2,
+        ),
         _row(model_id="m1", domain="public_services"),
     ]
     by_model = mean_score_by_model(rows)
@@ -96,10 +115,22 @@ def test_context_and_safety_gaps():
 
 def test_robustness_gap():
     rows = [
-        _row(variant="standard", correctness=5, context_fidelity=5, instruction_following=5,
-             language_quality=5, usefulness=5),
-        _row(variant="paraphrase", correctness=3, context_fidelity=3, instruction_following=3,
-             language_quality=3, usefulness=3),
+        _row(
+            variant="standard",
+            correctness=5,
+            context_fidelity=5,
+            instruction_following=5,
+            language_quality=5,
+            usefulness=5,
+        ),
+        _row(
+            variant="paraphrase",
+            correctness=3,
+            context_fidelity=3,
+            instruction_following=3,
+            language_quality=3,
+            usefulness=3,
+        ),
     ]
     gap = robustness_gap(rows, other_variant="paraphrase")
     assert gap == 2.0

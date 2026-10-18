@@ -123,9 +123,7 @@ def load_ratings(path: Path | str) -> list[dict[str, Any]]:
                     "language": (raw.get("language") or "").strip().lower(),
                     "correctness": _parse_optional_int(raw.get("correctness")),
                     "context_fidelity": _parse_optional_int(raw.get("context_fidelity")),
-                    "instruction_following": _parse_optional_int(
-                        raw.get("instruction_following")
-                    ),
+                    "instruction_following": _parse_optional_int(raw.get("instruction_following")),
                     "language_quality": _parse_optional_int(raw.get("language_quality")),
                     "usefulness": _parse_optional_int(raw.get("usefulness")),
                     "safety": _parse_optional_int(raw.get("safety")),
@@ -206,9 +204,7 @@ def main(argv: Sequence[str] | None = None) -> None:
 
     cfg = load_config()
     blinded = Path(args.blinded_csv)
-    out = Path(args.out) if args.out else (
-        cfg.ratings_dir / f"ratings_template_{blinded.stem}.csv"
-    )
+    out = Path(args.out) if args.out else (cfg.ratings_dir / f"ratings_template_{blinded.stem}.csv")
     path = create_rating_template(blinded, out, evaluator_id=args.evaluator_id)
     print(f"Wrote rating template: {path}")
     print(f"Guidelines: {repo_root() / 'docs' / 'annotation-guidelines.md'}")

@@ -8,7 +8,13 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from dotenv import load_dotenv
+try:
+    from dotenv import load_dotenv
+except ImportError:  # pragma: no cover
+
+    def load_dotenv(*_args: Any, **_kwargs: Any) -> bool:
+        return False
+
 
 SUPPORTED_LANGUAGES = ("en", "am", "om")
 SUPPORTED_DOMAINS = (
@@ -17,7 +23,7 @@ SUPPORTED_DOMAINS = (
     "business_finance",
     "ethiopian_contextual_reasoning",
 )
-SUPPORTED_PROVIDERS = ("mock", "ollama", "bedrock")
+SUPPORTED_PROVIDERS = ("mock", "bedrock")
 
 # Domain aliases accepted in datasets
 DOMAIN_ALIASES = {
@@ -39,9 +45,15 @@ DOMAIN_ALIASES = {
     "ctx": "ethiopian_contextual_reasoning",
 }
 
-DEFAULT_LOCAL_MODELS = {
-    "qwen-local": "qwen2.5:7b",
-    "gemma-local": "gemma3:4b",
+DOMAIN_CODES = {
+    "education": "EDU",
+    "public_services": "PUB",
+    "business_finance": "BIZ",
+    "ethiopian_contextual_reasoning": "CTX",
+    "edu": "education",
+    "pub": "public_services",
+    "biz": "business_finance",
+    "ctx": "ethiopian_contextual_reasoning",
 }
 
 
@@ -52,18 +64,18 @@ def repo_root() -> Path:
 
 @dataclass
 class ModelConfig:
-    """Single model entry from config JSON."""
+    """One model entry from config/models*.json."""
 
     name: str
     model_id: str
     enabled: bool = True
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> ModelConfig:
+    def from_dict(cls, raw: dict[str, Any]) -> ModelConfig:
         return cls(
-            name=str(data["name"]),
-            model_id=str(data["model_id"]),
-            enabled=bool(data.get("enabled", True)),
+            name=str(raw.get("name") or raw.get("model_id") or "unnamed"),
+            model_id=str(raw["model_id"]),
+            enabled=bool(raw.get("enabled", True)),
         )
 
 
@@ -71,18 +83,19 @@ class ModelConfig:
 class PilotConfig:
     """Runtime configuration for pilot generation and analysis."""
 
-    provider: str = "ollama"
+    provider: str = "bedrock"
     aws_region: str = "us-east-1"
-    ollama_base_url: str = "http://localhost:11434"
+    aws_profile: str | None = None
     max_tokens: int = 500
     temperature: float = 0.0
     runs: int = 2
     dataset_path: Path = field(default_factory=lambda: repo_root() / "data" / "scenarios.jsonl")
     models_config_path: Path = field(
-        default_factory=lambda: repo_root() / "config" / "models.local.json"
+        default_factory=lambda: repo_root() / "config" / "models.bedrock.json"
     )
     results_dir: Path = field(default_factory=lambda: repo_root() / "results")
     models: list[ModelConfig] = field(default_factory=list)
+    allow_unvalidated: bool = False
 
     def enabled_models(self) -> list[ModelConfig]:
         return [m for m in self.models if m.enabled]
@@ -122,42 +135,31 @@ def load_models_config(path: Path | str) -> tuple[str | None, list[ModelConfig]]
     """Load optional provider + model list from JSON."""
     path = Path(path)
     if not path.is_file():
-        local = repo_root() / "config" / "models.local.json"
-        example_local = local
-        bedrock_example = repo_root() / "config" / "models.example.json"
-        if example_local.is_file():
-            path = example_local
-        elif bedrock_example.is_file():
-            path = bedrock_example
-        else:
-            return "ollama", [
-                ModelConfig(name=n, model_id=mid, enabled=True)
-                for n, mid in DEFAULT_LOCAL_MODELS.items()
-            ]
+        raise FileNotFoundError(f"Model configuration not found: {path}")
     with path.open(encoding="utf-8") as f:
         payload = json.load(f)
-    provider = payload.get("provider")
+    provider = payload.get("provider") if isinstance(payload, dict) else None
     if provider is not None:
         provider = str(provider).strip().lower()
-    models_raw = payload.get("models", payload if isinstance(payload, list) else [])
-    models = [ModelConfig.from_dict(item) for item in models_raw]
+    models_raw = payload if isinstance(payload, list) else payload.get("models", [])
+    models = [ModelConfig.from_dict(m) for m in models_raw]
     return provider, models
 
 
-def _default_models_path() -> Path:
+def default_models_path() -> Path:
     root = repo_root()
-    # Preference: explicit env, local models.json, models.local.json, bedrock example
+    # Preference: explicit env, models.json, models.bedrock.json, models.example.json
     env_path = os.getenv("ETHIOEVAL_CONFIG")
     if env_path:
         return Path(env_path)
     for candidate in (
         root / "config" / "models.json",
-        root / "config" / "models.local.json",
-        root / "config" / "models.example.json",
+        root / "config" / "models.bedrock.json",
+        root / "config" / "models.bedrock.example.json",
     ):
         if candidate.is_file():
             return candidate
-    return root / "config" / "models.local.json"
+    return root / "config" / "models.bedrock.json"
 
 
 def load_config(
@@ -168,12 +170,7 @@ def load_config(
     results_dir: Path | str | None = None,
     provider: str | None = None,
 ) -> PilotConfig:
-    """
-    Load pilot configuration from environment and optional JSON.
-
-    AWS credentials are never read from project source files. boto3 (when used)
-    uses the standard credential chain. Local Ollama needs no cloud account.
-    """
+    """Load PilotConfig from env + optional models JSON."""
     root = repo_root()
     env_file = Path(dotenv_path) if dotenv_path else root / ".env"
     if env_file.is_file():
@@ -181,31 +178,60 @@ def load_config(
     else:
         load_dotenv()
 
-    models_path = Path(models_config_path) if models_config_path else _default_models_path()
+    models_path = (
+        Path(models_config_path)
+        if models_config_path
+        else (root / "config" / "models.mock.json" if provider == "mock" else default_models_path())
+    )
     file_provider, models = load_models_config(models_path)
 
+    # Optional region/profile from models JSON
+    json_region: str | None = None
+    json_profile: str | None = None
+    if models_path.is_file():
+        with models_path.open(encoding="utf-8") as f:
+            payload = json.load(f)
+        if isinstance(payload, dict):
+            if payload.get("region"):
+                json_region = str(payload["region"]).strip()
+            if payload.get("aws_profile"):
+                json_profile = str(payload["aws_profile"]).strip()
+
     resolved_provider = (
-        (provider or os.getenv("ETHIOEVAL_PROVIDER") or file_provider or "ollama")
-        .strip()
-        .lower()
+        (provider or os.getenv("ETHIOEVAL_PROVIDER") or file_provider or "bedrock").strip().lower()
     )
+    if resolved_provider not in SUPPORTED_PROVIDERS:
+        raise ValueError(
+            "Provider 'ollama' has been removed. Use 'bedrock' (or 'mock' for offline tests)."
+        )
 
     cfg = PilotConfig(
         provider=resolved_provider,
-        aws_region=os.getenv("AWS_REGION")
-        or os.getenv("AWS_DEFAULT_REGION")
-        or "us-east-1",
-        ollama_base_url=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434"),
+        aws_region=(
+            os.getenv("AWS_REGION") or os.getenv("AWS_DEFAULT_REGION") or json_region or "us-east-1"
+        ),
+        aws_profile=os.getenv("AWS_PROFILE") or json_profile,
         max_tokens=_env_int("ETHIOEVAL_MAX_TOKENS", 500),
         temperature=_env_float("ETHIOEVAL_TEMPERATURE", 0.0),
         runs=_env_int("ETHIOEVAL_RUNS", 2),
         dataset_path=Path(dataset_path)
         if dataset_path
-        else Path(os.getenv("ETHIOEVAL_DATA", str(root / "data" / "scenarios.jsonl"))),
+        else Path(
+            os.getenv(
+                "ETHIOEVAL_DATASET",
+                os.getenv("ETHIOEVAL_DATA", str(root / "data" / "scenarios.jsonl")),
+            )
+        ),
         models_config_path=models_path,
         results_dir=Path(results_dir)
         if results_dir
-        else Path(os.getenv("ETHIOEVAL_RESULTS_DIR", str(root / "results"))),
+        else Path(
+            os.getenv(
+                "ETHIOEVAL_RESULTS", os.getenv("ETHIOEVAL_RESULTS_DIR", str(root / "results"))
+            )
+        ),
         models=models,
+        allow_unvalidated=os.getenv("ETHIOEVAL_ALLOW_UNVALIDATED", "").lower()
+        in {"1", "true", "yes"},
     )
     return cfg

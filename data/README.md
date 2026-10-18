@@ -1,3 +1,5 @@
+> Current workflow: Bedrock is the research provider; mock is for offline tests. Ollama references below are historical. Current Amharic/Afaan Oromo prompts are AI drafts requiring validation. Use README.md for current commands and safeguards.
+
 # Data
 
 ## Files
