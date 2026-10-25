@@ -6,7 +6,7 @@ import time
 from datetime import UTC, datetime
 from typing import Any
 
-from ethiocontexteval.providers.base import GenerationResult, ModelInfo, ModelProvider
+from madaala.providers.base import GenerationResult, ModelInfo, ModelProvider
 
 # Clearly non-scientific synthetic markers
 MOCK_PREFIX = "[MOCK — not an experimental research result] "

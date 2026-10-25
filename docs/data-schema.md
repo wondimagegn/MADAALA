@@ -1,4 +1,4 @@
-# Data Schema
+# MADAALA data schema
 
 ## Scenario JSONL (`data/*.jsonl`)
 
@@ -17,7 +17,7 @@ Each line is one JSON object.
 | `safety_sensitive` | bool | yes | |
 | `translation_status` | string | yes | e.g. `master_english`, `pending_human_translation` |
 | `validation_status` | string | yes | e.g. `pending_expert_validation` |
-| `source_language` | string | recommended | usually `en` |
+| `source_language` | string | recommended | `en` for the current pilot; future locally authored prompts require explicit provenance |
 | `linguistic_validator` | string/null | optional | |
 | `cultural_validator` | string/null | optional | |
 | `validation_notes` | string/null | optional | |
@@ -35,7 +35,7 @@ Each line is one JSON object.
 | `domain` | string |
 | `language` | string |
 | `variant` | string |
-| `provider` | string (`mock` \| `ollama` \| `bedrock`) |
+| `provider` | string (`mock` \| `bedrock`) |
 | `model_id` | string |
 | `model_name` | string |
 | `run` | int |
@@ -65,6 +65,6 @@ Each line is one JSON object.
 
 ## Ratings CSV (`results/ratings/*.csv`)
 
-See `human_evaluation.TEMPLATE_FIELDS` and `docs/annotation-guidelines.md`.
+See `madaala.human_evaluation.TEMPLATE_FIELDS` and the [annotation guidelines](annotation-guidelines.md).
 
 Generation rows preserve translation_status_at_run, validation_status_at_run, research_grade and technical_pilot.

@@ -4,9 +4,9 @@ from types import SimpleNamespace
 
 from botocore.exceptions import ClientError
 
-from ethiocontexteval.bedrock_client import BedrockClient
-from ethiocontexteval.providers.bedrock_provider import BedrockProvider
-from ethiocontexteval.quotas import inspect_quotas
+from madaala.bedrock_client import BedrockClient
+from madaala.providers.bedrock_provider import BedrockProvider
+from madaala.quotas import inspect_quotas
 
 
 def test_exact_discovery_and_provider_contract():

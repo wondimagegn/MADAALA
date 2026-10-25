@@ -1,4 +1,4 @@
-"""Amazon Bedrock client for EthioContextEval (credentials via boto3 chain only)."""
+"""Amazon Bedrock client for MADAALA (credentials via boto3 chain only)."""
 
 from __future__ import annotations
 

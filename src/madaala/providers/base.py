@@ -96,11 +96,11 @@ def get_provider(
     """Factory for provider backends. Supported: mock, bedrock."""
     key = (name or "bedrock").strip().lower()
     if key == "mock":
-        from ethiocontexteval.providers.mock_provider import MockProvider
+        from madaala.providers.mock_provider import MockProvider
 
         return MockProvider(**kwargs)
     if key == "bedrock":
-        from ethiocontexteval.providers.bedrock_provider import BedrockProvider
+        from madaala.providers.bedrock_provider import BedrockProvider
 
         return BedrockProvider(region_name=region, profile_name=profile, **kwargs)
     if key == "ollama":

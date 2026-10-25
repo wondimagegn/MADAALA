@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from ethiocontexteval.providers.base import (
+from madaala.providers.base import (
     GenerationResult,
     ModelInfo,
     ModelProvider,
@@ -43,7 +43,7 @@ class BedrockProvider(ModelProvider):
         if self._client is not None:
             return self._client
         try:
-            from ethiocontexteval.bedrock_client import BedrockClient
+            from madaala.bedrock_client import BedrockClient
         except ImportError as exc:  # pragma: no cover
             raise ProviderError(
                 'Bedrock support requires AWS deps. Install with: pip install -e ".[aws]"'
@@ -83,7 +83,7 @@ class BedrockProvider(ModelProvider):
         try:
             raw = client.list_foundation_models()
         except Exception as exc:
-            from ethiocontexteval.bedrock_client import format_aws_error
+            from madaala.bedrock_client import format_aws_error
 
             raise ProviderError(format_aws_error(exc)) from exc
         out: list[ModelInfo] = []

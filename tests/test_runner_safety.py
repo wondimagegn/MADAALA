@@ -6,9 +6,9 @@ from pathlib import Path
 
 import pytest
 
-from ethiocontexteval.config import ModelConfig, PilotConfig
-from ethiocontexteval.dataset import executable_scenarios, is_research_grade, load_scenarios
-from ethiocontexteval.runner import dry_run_report, main, run_experiment
+from madaala.config import ModelConfig, PilotConfig
+from madaala.dataset import executable_scenarios, is_research_grade, load_scenarios
+from madaala.runner import dry_run_report, main, run_experiment
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -35,7 +35,7 @@ def test_validation_metadata_controls_research_grade():
 
 def test_cli_dry_run_never_initializes_provider(monkeypatch):
     monkeypatch.setattr(
-        "ethiocontexteval.runner.create_provider_from_config",
+        "madaala.runner.create_provider_from_config",
         lambda _: pytest.fail("provider initialized"),
     )
     with pytest.raises(SystemExit) as exc:

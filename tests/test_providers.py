@@ -7,15 +7,15 @@ from pathlib import Path
 
 import pytest
 
-from ethiocontexteval.config import ModelConfig, PilotConfig
-from ethiocontexteval.providers import (
+from madaala.config import ModelConfig, PilotConfig
+from madaala.providers import (
     GenerationResult,
     ModelProvider,
     ProviderError,
     get_provider,
 )
-from ethiocontexteval.providers.mock_provider import MOCK_PREFIX, MockProvider
-from ethiocontexteval.runner import run_experiment
+from madaala.providers.mock_provider import MOCK_PREFIX, MockProvider
+from madaala.runner import run_experiment
 
 ROOT = Path(__file__).resolve().parents[1]
 

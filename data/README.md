@@ -29,8 +29,8 @@
 ## Validation
 
 ```powershell
-python -m ethiocontexteval.dataset validate data/scenarios.jsonl
-python -m ethiocontexteval.dataset summary data/scenarios.jsonl
+python -m madaala.dataset validate data/scenarios.jsonl
+python -m madaala.dataset summary data/scenarios.jsonl
 ```
 
 Executable pilot cells currently are English-only until translations are completed.

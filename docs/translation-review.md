@@ -1,4 +1,4 @@
-# Translation review for the proposal pilot
+# MADAALA prompt and translation review
 
 All 24 Amharic/Afaan Oromo prompts already contain AI-assisted draft translations. Open data/translation-review.csv with UTF-8 support. It pairs English and draft prompts with the unchanged evaluation criteria. Blank reviewer fields are intentional; no human review has been claimed.
 

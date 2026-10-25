@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from ethiocontexteval.dataset import (
+from madaala.dataset import (
     DatasetValidationError,
     executable_scenarios,
     load_scenarios,

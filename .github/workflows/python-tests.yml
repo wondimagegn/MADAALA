@@ -34,22 +34,22 @@ jobs:
       - name: Pytest (mock provider only; no Ollama/AWS)
         run: pytest -m "not integration"
         env:
-          ETHIOEVAL_PROVIDER: mock
+          MADAALA_PROVIDER: mock
           AWS_ACCESS_KEY_ID: ""
           AWS_SECRET_ACCESS_KEY: ""
           AWS_SESSION_TOKEN: ""
 
       - name: Validate dataset
-        run: python -m ethiocontexteval.dataset validate data/scenarios.jsonl
+        run: python -m madaala.dataset validate data/scenarios.jsonl
 
       - name: Dry-run with MockProvider
         run: >
-          python -m ethiocontexteval.runner
+          python -m madaala.runner
           --provider mock
           --config config/models.mock.json
           --dry-run
         env:
-          ETHIOEVAL_PROVIDER: mock
+          MADAALA_PROVIDER: mock
           AWS_ACCESS_KEY_ID: ""
           AWS_SECRET_ACCESS_KEY: ""
           AWS_SESSION_TOKEN: ""

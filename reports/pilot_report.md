@@ -1,8 +1,8 @@
-# EthioContextEval Pilot
+# MADAALA Pilot
 
 ## Objective
 
-Assess the feasibility of human-grounded evaluation of multilingual generative AI for Ethiopian contexts (English, Amharic, Afaan Oromo), supporting the broader EthioContextEval research program and Amazon Research Awards proposal readiness.
+Assess the feasibility of human-grounded evaluation of multilingual generative AI for Ethiopian contexts (English, Amharic, Afaan Oromo), supporting the broader MADAALA research program and Amazon Research Awards proposal readiness.
 
 ## Research Question
 
@@ -25,7 +25,7 @@ Twelve English master scenarios (`data/pilot_scenarios_en.jsonl`), expanded to a
 - `nova-lite`: `amazon.nova-lite-v1:0` (enabled)
 - `nova-pro`: `amazon.nova-pro-v1:0` (enabled)
 
-Model availability must be verified per region via `python -m ethiocontexteval.models list`.
+Model availability must be verified per region via `python -m madaala.models list`.
 
 ## Human Evaluation
 
@@ -57,14 +57,14 @@ _Pending ratings with error codes (E1–E10)._
 
 _To be completed after the first end-to-end pilot cycle (generation → blinding → rating → analysis)._
 
-## Implications for Full EthioContextEval Study
+## Implications for Full MADAALA Study
 
 The pilot validates tooling, schema, blinding, and analysis pathways. The full study should expand scenario coverage, complete human translation and cultural validation, increase rater diversity, and apply mixed-effects models for crossed scenario/language/model factors.
 
 ## Reproducibility
 
 - Configuration via environment variables and `config/models*.json`.
-- Dataset validation: `python -m ethiocontexteval.dataset validate`.
-- Dry run: `python -m ethiocontexteval.runner --dry-run`.
+- Dataset validation: `python -m madaala.dataset validate`.
+- Dry run: `python -m madaala.runner --dry-run`.
 - Tests: `pytest`.
 - No AWS credentials are stored in the repository.
