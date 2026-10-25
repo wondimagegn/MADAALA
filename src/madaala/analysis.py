@@ -1,4 +1,4 @@
-"""Statistical analysis and report generation for EthioContextEval pilot."""
+"""Statistical analysis and report generation for MADAALA pilot."""
 
 from __future__ import annotations
 
@@ -14,9 +14,9 @@ from typing import Any
 import numpy as np
 from scipy import stats
 
-from ethiocontexteval.config import load_config, repo_root
-from ethiocontexteval.human_evaluation import ERROR_TAXONOMY, load_all_ratings
-from ethiocontexteval.metrics import (
+from madaala.config import load_config, repo_root
+from madaala.human_evaluation import ERROR_TAXONOMY, load_all_ratings
+from madaala.metrics import (
     attach_model_from_mapping,
     context_fidelity_gap,
     count_error_codes,
@@ -457,14 +457,14 @@ def generate_report(
     output_path.parent.mkdir(parents=True, exist_ok=True)
     has_results = bool(ratings)
     lines: list[str] = []
-    lines.append("# EthioContextEval Pilot")
+    lines.append("# MADAALA Pilot")
     lines.append("")
     lines.append("## Objective")
     lines.append("")
     lines.append(
         "Assess the feasibility of human-grounded evaluation of multilingual generative AI "
         "for Ethiopian contexts (English, Amharic, Afaan Oromo), supporting the broader "
-        "EthioContextEval research program and Amazon Research Awards proposal readiness."
+        "MADAALA research program and Amazon Research Awards proposal readiness."
     )
     lines.append("")
     lines.append("## Research Question")
@@ -514,7 +514,7 @@ def generate_report(
     lines.append("")
     lines.append(
         "Model availability must be verified for the chosen provider via "
-        "`python -m ethiocontexteval.models list --provider <name>`."
+        "`python -m madaala.models list --provider <name>`."
     )
     lines.append("")
     lines.append("## Human Evaluation")
@@ -590,7 +590,7 @@ def generate_report(
         "(generation -> blinding -> rating -> analysis)._"
     )
     lines.append("")
-    lines.append("## Implications for Full EthioContextEval Study")
+    lines.append("## Implications for Full MADAALA Study")
     lines.append("")
     lines.append(
         "The pilot validates tooling, schema, blinding, provider abstraction, and analysis pathways. "
@@ -603,10 +603,8 @@ def generate_report(
     lines.append("## Reproducibility")
     lines.append("")
     lines.append("- Configuration via environment variables and `config/models*.json`.")
-    lines.append("- Dataset validation: `python -m ethiocontexteval.dataset validate`.")
-    lines.append(
-        "- Dry run: `python -m ethiocontexteval.runner --provider mock|ollama|bedrock --dry-run`."
-    )
+    lines.append("- Dataset validation: `python -m madaala.dataset validate`.")
+    lines.append("- Dry run: `python -m madaala.runner --provider mock|ollama|bedrock --dry-run`.")
     lines.append("- Tests: `pytest` (MockProvider; no cloud required).")
     lines.append("- No cloud credentials are stored in the repository.")
     if generations_meta:
@@ -656,7 +654,7 @@ def run_analysis_pipeline(
 
 def main(argv: Sequence[str] | None = None) -> None:
     parser = argparse.ArgumentParser(
-        prog="python -m ethiocontexteval.analysis",
+        prog="python -m madaala.analysis",
         description="Analyze ratings and generate pilot report/figures.",
     )
     parser.add_argument(

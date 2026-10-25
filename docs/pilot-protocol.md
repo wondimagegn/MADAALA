@@ -1,85 +1,62 @@
-> Current workflow: Bedrock is the research provider; mock is for offline tests. Ollama references below are historical. Current Amharic/Afaan Oromo prompts are AI drafts requiring validation. Use README.md for current commands and safeguards.
+# MADAALA pilot protocol
 
-# Pilot Protocol
+This protocol exercises the current 12-scenario MADAALA dataset. The expanded research design is described in the [methodology](methodology.md) and [roadmap](madaala-roadmap.md).
 
-## Scope
+## Prerequisites
 
-Technical and methodological readiness pilot for EthioContextEval.
+Run from the repository root in an activated Python environment after `python -m pip install -e ".[dev]"`. Offline mock runs need no AWS account. Bedrock runs require authenticated AWS access, a configured model and usable runtime quotas. See the [README](../README.md) for platform-specific setup.
 
-- 12 English master scenarios
-- Multilingual template with `am`/`om` pending human translation
-- Up to 2 **local** candidate models × 2 runs (Ollama)
-- Human ratings after blinding
-- Bedrock retained as **optional future** provider (not required now)
+## Validate and plan offline
 
-## Preconditions
-
-1. Python 3.10+ venv with package installed (`pip install -e ".[dev]"`)
-2. Dataset validates
-3. **For local pilot:** Ollama installed, daemon running, candidate models pulled **manually**
-4. **For future Bedrock:** `pip install -e ".[aws]"`, AWS credentials, Bedrock model access
-
-## Steps (local Ollama)
-
-### 1. Environment check
-
-```powershell
-.\scripts\check_environment.ps1
+```text
+python -m madaala.dataset validate data/scenarios.jsonl
+python -m madaala.runner --provider mock --config config/models.mock.json --scenario EDU-001 --language en --model mock-model-a --runs 1 --dry-run
 ```
 
-### 2. Validate data
+Expect 36 valid records, 12 executable by default and 24 draft records skipped. The filtered plan contains one generation.
 
-```powershell
-python -m ethiocontexteval.dataset validate data\scenarios.jsonl
+## Execute a synthetic smoke test
+
+Choose an unused output path for a new experiment:
+
+```text
+python -m madaala.runner --provider mock --config config/models.mock.json --scenario EDU-001 --language en --model mock-model-a --runs 1 --execute --output results/raw/madaala_mock_smoke.jsonl
 ```
 
-### 3. Provider health and models
+Mock responses verify the pipeline and are not experimental findings.
 
-```powershell
-python -m ethiocontexteval.models health --provider ollama
-python -m ethiocontexteval.models list --provider ollama
-python -m ethiocontexteval.models check --provider ollama --config config\models.local.json
+## Prepare a Bedrock run
+
+Copy `config/models.bedrock.example.json` to the local, ignored `config/models.bedrock.json` if it does not already exist. Select an exact model ID and region supported by your account. Replace `madaala` below with your configured AWS profile name.
+
+```text
+python -m madaala.models check --provider bedrock --profile madaala --region eu-north-1 --config config/models.bedrock.json
+python -m madaala.quotas --profile madaala --region eu-north-1 --search Qwen
+python -m madaala.runner --provider bedrock --profile madaala --region eu-north-1 --config config/models.bedrock.json --scenario EDU-001 --language en --model qwen.qwen3-235b-a22b-2507-v1:0 --runs 1 --temperature 0 --max-tokens 1000 --dry-run
 ```
 
-### 4. Dry run (mandatory before inference)
+Discovery does not establish inference permission or capacity; dry-run is an offline plan. Confirm one selected record, one model and one expected generation. When ready to incur inference charges, replace `--dry-run` with `--execute --output results/raw/madaala_bedrock_smoke.jsonl` using a fresh path. Transient failures can trigger bounded retries.
 
-```powershell
-python -m ethiocontexteval.runner --provider ollama --config config\models.local.json --dry-run
+For technical tests in Amharic or Afaan Oromo, select `--language am` or `--language om` and add `--allow-unvalidated`. All current records remain technical-only, including English. Expert review must precede research comparisons.
+
+## Review and collect human ratings
+
+Inspect status, errors, response text, finish reason and validation metadata. API success does not establish accuracy; `finish_reason=max_tokens` may indicate incomplete output. Calibrate budgets before expanding runs.
+
+For a completed experiment, substitute its actual response path:
+
+```text
+python -m madaala.anonymize results/raw/madaala_bedrock_smoke.jsonl --blinded-out results/blinded/madaala_pilot.csv --mapping-out results/raw/blind_mapping_madaala_pilot.csv
+python -m madaala.human_evaluation template results/blinded/madaala_pilot.csv --out results/ratings/madaala_reviewer1.csv
 ```
 
-### 5. Execute generations (explicit only)
+Provide reviewers with the matching prompts and [annotation guidelines](annotation-guidelines.md). Use separate files and evaluator IDs for independent reviewers. Keep the mapping private. Analyze only genuine completed ratings under documented inclusion rules; see the [output guide](proposal-outputs.md).
 
-```powershell
-.\scripts\run_local_pilot.ps1
-# or:
-python -m ethiocontexteval.runner --provider ollama --config config\models.local.json --execute
-```
+## Run controls
 
-### 6. Anonymize / rate / analyze
-
-Same as before: `anonymize` → human_evaluation template → fill ratings → `analysis`.
-
-## Mock / CI
-
-```powershell
-python -m ethiocontexteval.runner --provider mock --config config\models.mock.json --dry-run
-```
-
-## Optional future Bedrock
-
-```powershell
-pip install -e ".[aws]"
-python -m ethiocontexteval.models list --provider bedrock
-python -m ethiocontexteval.runner --provider bedrock --config config\models.example.json --dry-run
-```
-
-Only claim Bedrock usage when generations JSONL records `provider: "bedrock"`.
-
-## Stop conditions
-
-- Stop if dataset invalid
-- Stop if provider unhealthy or models missing
-- Do not auto-download large models
-- Do not publish blind mappings
-- Do not interpret results before human validation
-- Do not treat mock outputs as experimental findings
+- Resolve invalid data, unknown models and access failures before execution.
+- Use separate output paths for changed prompts or generation settings.
+- Record dataset version/hash, code commit, model, region, settings and validation status.
+- Keep raw responses and private mappings out of Git.
+- Report truncation, failures and exclusions explicitly.
+- Base quality conclusions on validated prompts and qualified human evaluation.

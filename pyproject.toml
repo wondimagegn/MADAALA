@@ -3,9 +3,9 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "ethiocontexteval"
+name = "madaala"
 version = "0.1.1"
-description = "Human-grounded evaluation of multilingual generative AI for Ethiopian contexts (pilot)."
+description = "MADAALA: human-grounded language-parity evaluation for Ethiopian contexts (prototype)."
 readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.10"
@@ -54,7 +54,7 @@ aws = [
 ]
 
 [project.urls]
-Repository = "https://github.com/wondimagegn/ethiocontexteval"
+Repository = "https://github.com/wondimagegn/MADAALA"
 
 [tool.setuptools.packages.find]
 where = ["src"]

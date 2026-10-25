@@ -1,4 +1,4 @@
-"""Evaluation metrics for EthioContextEval pilot scores."""
+"""Evaluation metrics for MADAALA pilot scores."""
 
 from __future__ import annotations
 

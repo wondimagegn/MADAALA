@@ -1,4 +1,4 @@
-"""Provider-independent experiment runner for EthioContextEval pilot generations."""
+"""Provider-independent experiment runner for MADAALA pilot generations."""
 
 from __future__ import annotations
 
@@ -11,15 +11,15 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from ethiocontexteval.config import PilotConfig, load_config
-from ethiocontexteval.dataset import (
+from madaala.config import PilotConfig, load_config
+from madaala.dataset import (
     DatasetValidationError,
     Scenario,
     executable_scenarios,
     is_research_grade,
     load_scenarios,
 )
-from ethiocontexteval.providers import ModelProvider, ProviderError, get_provider
+from madaala.providers import ModelProvider, ProviderError, get_provider
 
 
 def _utc_stamp() -> str:
@@ -184,7 +184,7 @@ def dry_run_report(
 
 
 def _print_dry_run(report: dict[str, Any]) -> None:
-    print("=== EthioContextEval dry run ===")
+    print("=== MADAALA dry run ===")
     for label, key in [
         ("Provider", "provider"),
         ("AWS profile", "aws_profile"),
@@ -357,7 +357,7 @@ def run_experiment(
                     temperature=cfg.temperature,
                 )
             except Exception as exc:
-                from ethiocontexteval.providers import GenerationResult
+                from madaala.providers import GenerationResult
 
                 result = GenerationResult(
                     provider=backend.provider_name(),
@@ -395,14 +395,14 @@ def run_experiment(
 
 def main(argv: Sequence[str] | None = None) -> None:
     parser = argparse.ArgumentParser(
-        prog="python -m ethiocontexteval.runner",
-        description="Run EthioContextEval pilot generations (provider-independent).",
+        prog="python -m madaala.runner",
+        description="Run MADAALA pilot generations (provider-independent).",
     )
     parser.add_argument(
         "--provider",
         default=None,
         choices=["mock", "bedrock"],
-        help="Inference provider (default from config / ETHIOEVAL_PROVIDER / bedrock)",
+        help="Inference provider (default from config / MADAALA_PROVIDER / bedrock)",
     )
     parser.add_argument(
         "--config",

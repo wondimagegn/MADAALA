@@ -1,4 +1,4 @@
-"""Dataset loading and validation for EthioContextEval scenarios."""
+"""Dataset loading and validation for MADAALA scenarios."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from ethiocontexteval.config import (
+from madaala.config import (
     DOMAIN_ALIASES,
     SUPPORTED_DOMAINS,
     SUPPORTED_LANGUAGES,
@@ -368,8 +368,8 @@ def iter_scenario_summaries(scenarios: Sequence[Scenario]) -> Iterator[dict[str,
 
 def validate_cli(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        prog="python -m ethiocontexteval.dataset",
-        description="Validate EthioContextEval scenario JSONL datasets.",
+        prog="python -m madaala.dataset",
+        description="Validate MADAALA scenario JSONL datasets.",
     )
     parser.add_argument(
         "command",

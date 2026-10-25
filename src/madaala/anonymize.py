@@ -12,7 +12,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from ethiocontexteval.config import load_config, repo_root
+from madaala.config import load_config, repo_root
 
 
 def _utc_stamp() -> str:
@@ -142,7 +142,7 @@ def anonymize_file(
 
 def main(argv: Sequence[str] | None = None) -> None:
     parser = argparse.ArgumentParser(
-        prog="python -m ethiocontexteval.anonymize",
+        prog="python -m madaala.anonymize",
         description="Create blinded response CSVs and private model mappings.",
     )
     parser.add_argument(

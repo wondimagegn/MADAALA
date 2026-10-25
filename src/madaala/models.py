@@ -1,4 +1,4 @@
-"""Model discovery helpers (CLI: python -m ethiocontexteval.models)."""
+"""Model discovery helpers (CLI: python -m madaala.models)."""
 
 from __future__ import annotations
 
@@ -7,8 +7,8 @@ import json
 import sys
 from collections.abc import Sequence
 
-from ethiocontexteval.config import load_config
-from ethiocontexteval.providers import ProviderError, get_provider
+from madaala.config import load_config
+from madaala.providers import ProviderError, get_provider
 
 
 def _print_health(provider_name: str, health: dict) -> None:
@@ -94,7 +94,7 @@ def check_cli(
 
 def main(argv: Sequence[str] | None = None) -> None:
     parser = argparse.ArgumentParser(
-        prog="python -m ethiocontexteval.models",
+        prog="python -m madaala.models",
         description="Discover and verify models for Bedrock (or mock).",
     )
     parser.add_argument(
@@ -106,7 +106,7 @@ def main(argv: Sequence[str] | None = None) -> None:
         "--provider",
         default=None,
         choices=["mock", "bedrock"],
-        help="Provider (default: config / ETHIOEVAL_PROVIDER / bedrock)",
+        help="Provider (default: config / MADAALA_PROVIDER / bedrock)",
     )
     parser.add_argument("--region", default=None, help="AWS region override")
     parser.add_argument("--profile", default=None, help="AWS profile override")

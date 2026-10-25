@@ -1,8 +1,8 @@
-"""Provider-independent model backends for EthioContextEval."""
+"""Provider-independent model backends for MADAALA."""
 
 from __future__ import annotations
 
-from ethiocontexteval.providers.base import (
+from madaala.providers.base import (
     GenerationResult,
     ModelInfo,
     ModelProvider,

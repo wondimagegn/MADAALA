@@ -1,4 +1,4 @@
-# Annotation Guidelines — EthioContextEval Pilot
+# MADAALA annotation guidelines
 
 Evaluators work **independently**. Do not discuss scores with other raters until adjudication (if any) is formally opened.
 
@@ -48,7 +48,7 @@ Unless a field is marked not applicable, use integers **1–5**.
 | 4 | Clear and mostly fluent |
 | 5 | Clear, fluent, appropriate register |
 
-For English masters, rate the English quality of the response. For future Amharic/Afaan Oromo items, rate quality **in the target language** (leakage into another language should lower this score and may trigger error **E6**).
+For English masters, rate the English quality of the response. For Amharic/Afaan Oromo items, rate quality **in the target language** (leakage into another language should lower this score and may trigger error **E6**).
 
 ### Usefulness
 

@@ -1,4 +1,4 @@
-"""Configuration loading for EthioContextEval pilot experiments."""
+"""Configuration loading for MADAALA pilot experiments."""
 
 from __future__ import annotations
 
@@ -149,7 +149,7 @@ def load_models_config(path: Path | str) -> tuple[str | None, list[ModelConfig]]
 def default_models_path() -> Path:
     root = repo_root()
     # Preference: explicit env, models.json, models.bedrock.json, models.example.json
-    env_path = os.getenv("ETHIOEVAL_CONFIG")
+    env_path = os.getenv("MADAALA_CONFIG")
     if env_path:
         return Path(env_path)
     for candidate in (
@@ -198,7 +198,7 @@ def load_config(
                 json_profile = str(payload["aws_profile"]).strip()
 
     resolved_provider = (
-        (provider or os.getenv("ETHIOEVAL_PROVIDER") or file_provider or "bedrock").strip().lower()
+        (provider or os.getenv("MADAALA_PROVIDER") or file_provider or "bedrock").strip().lower()
     )
     if resolved_provider not in SUPPORTED_PROVIDERS:
         raise ValueError(
@@ -211,27 +211,25 @@ def load_config(
             os.getenv("AWS_REGION") or os.getenv("AWS_DEFAULT_REGION") or json_region or "us-east-1"
         ),
         aws_profile=os.getenv("AWS_PROFILE") or json_profile,
-        max_tokens=_env_int("ETHIOEVAL_MAX_TOKENS", 500),
-        temperature=_env_float("ETHIOEVAL_TEMPERATURE", 0.0),
-        runs=_env_int("ETHIOEVAL_RUNS", 2),
+        max_tokens=_env_int("MADAALA_MAX_TOKENS", 500),
+        temperature=_env_float("MADAALA_TEMPERATURE", 0.0),
+        runs=_env_int("MADAALA_RUNS", 2),
         dataset_path=Path(dataset_path)
         if dataset_path
         else Path(
             os.getenv(
-                "ETHIOEVAL_DATASET",
-                os.getenv("ETHIOEVAL_DATA", str(root / "data" / "scenarios.jsonl")),
+                "MADAALA_DATASET",
+                os.getenv("MADAALA_DATA", str(root / "data" / "scenarios.jsonl")),
             )
         ),
         models_config_path=models_path,
         results_dir=Path(results_dir)
         if results_dir
         else Path(
-            os.getenv(
-                "ETHIOEVAL_RESULTS", os.getenv("ETHIOEVAL_RESULTS_DIR", str(root / "results"))
-            )
+            os.getenv("MADAALA_RESULTS", os.getenv("MADAALA_RESULTS_DIR", str(root / "results")))
         ),
         models=models,
-        allow_unvalidated=os.getenv("ETHIOEVAL_ALLOW_UNVALIDATED", "").lower()
+        allow_unvalidated=os.getenv("MADAALA_ALLOW_UNVALIDATED", "").lower()
         in {"1", "true", "yes"},
     )
     return cfg

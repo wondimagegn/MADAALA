@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from ethiocontexteval.metrics import (
+from madaala.metrics import (
     context_fidelity_gap,
     language_parity_gap,
     mean_score_by_domain,

@@ -39,7 +39,7 @@ def main() -> None:
     try:
         import boto3
 
-        from ethiocontexteval.bedrock_client import format_aws_error
+        from madaala.bedrock_client import format_aws_error
 
         session = boto3.Session(profile_name=args.profile, region_name=args.region)
         report = inspect_quotas(session.client("service-quotas"), args.search)

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from ethiocontexteval.anonymize import anonymize_generations
+from madaala.anonymize import anonymize_generations
 
 
 def test_anonymize_strips_model_and_provider_identity():

@@ -9,7 +9,7 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
-from ethiocontexteval.config import load_config, repo_root
+from madaala.config import load_config, repo_root
 
 # Rating dimensions (1-5). safety may be left blank when not applicable.
 RATING_DIMENSIONS = (
@@ -179,7 +179,7 @@ def taxonomy_markdown() -> str:
 
 def main(argv: Sequence[str] | None = None) -> None:
     parser = argparse.ArgumentParser(
-        prog="python -m ethiocontexteval.human_evaluation",
+        prog="python -m madaala.human_evaluation",
         description="Create rating templates and inspect error taxonomy.",
     )
     sub = parser.add_subparsers(dest="command", required=True)

@@ -43,21 +43,21 @@ results/raw/.gitkeep
 scripts/_build_pilot_dataset.py
 scripts/check_aws_environment.ps1
 scripts/check_aws_environment.sh
-src/ethiocontexteval/__init__.py
-src/ethiocontexteval/analysis.py
-src/ethiocontexteval/anonymize.py
-src/ethiocontexteval/bedrock_client.py
-src/ethiocontexteval/config.py
-src/ethiocontexteval/dataset.py
-src/ethiocontexteval/human_evaluation.py
-src/ethiocontexteval/metrics.py
-src/ethiocontexteval/models.py
-src/ethiocontexteval/providers/__init__.py
-src/ethiocontexteval/providers/base.py
-src/ethiocontexteval/providers/bedrock_provider.py
-src/ethiocontexteval/providers/mock_provider.py
-src/ethiocontexteval/quotas.py
-src/ethiocontexteval/runner.py
+src/madaala/__init__.py
+src/madaala/analysis.py
+src/madaala/anonymize.py
+src/madaala/bedrock_client.py
+src/madaala/config.py
+src/madaala/dataset.py
+src/madaala/human_evaluation.py
+src/madaala/metrics.py
+src/madaala/models.py
+src/madaala/providers/__init__.py
+src/madaala/providers/base.py
+src/madaala/providers/bedrock_provider.py
+src/madaala/providers/mock_provider.py
+src/madaala/quotas.py
+src/madaala/runner.py
 tests/test_anonymize.py
 tests/test_bedrock.py
 tests/test_dataset.py
@@ -69,7 +69,7 @@ tests/test_runner_safety.py
 
 ## Removed from repository workspace
 
-These obsolete files were moved recoverably to D:/Project/ethiocontexteval-cleanup-archive after automatic review rejected recursive deletion. They are not research data.
+These obsolete files were moved recoverably to D:/Project/madaala-cleanup-archive after automatic review rejected recursive deletion. They are not research data.
 
 ```text
 _bedrock_client_numbered.txt
@@ -129,7 +129,7 @@ scripts\run_local_pilot.ps1
 scripts\run_pilot.ps1
 scripts\check_environment.ps1
 scripts\wait_and_smoke_bedrock.py
-src\ethiocontexteval\providers\ollama_provider.py
+src\madaala\providers\ollama_provider.py
 
 ```
 
@@ -158,16 +158,16 @@ This status includes modifications already present when work began. The dataset'
  D scripts/check_environment.ps1
  D scripts/run_local_pilot.ps1
  D scripts/run_pilot.ps1
- M src/ethiocontexteval/analysis.py
- M src/ethiocontexteval/bedrock_client.py
- M src/ethiocontexteval/config.py
- M src/ethiocontexteval/dataset.py
- M src/ethiocontexteval/human_evaluation.py
- M src/ethiocontexteval/models.py
- M src/ethiocontexteval/providers/base.py
- M src/ethiocontexteval/providers/bedrock_provider.py
- D src/ethiocontexteval/providers/ollama_provider.py
- M src/ethiocontexteval/runner.py
+ M src/madaala/analysis.py
+ M src/madaala/bedrock_client.py
+ M src/madaala/config.py
+ M src/madaala/dataset.py
+ M src/madaala/human_evaluation.py
+ M src/madaala/models.py
+ M src/madaala/providers/base.py
+ M src/madaala/providers/bedrock_provider.py
+ D src/madaala/providers/ollama_provider.py
+ M src/madaala/runner.py
  M tests/test_dataset.py
  M tests/test_metrics.py
  M tests/test_providers.py
@@ -178,7 +178,7 @@ This status includes modifications already present when work began. The dataset'
 ?? reports/dataset.sha256
 ?? scripts/check_aws_environment.ps1
 ?? scripts/check_aws_environment.sh
-?? src/ethiocontexteval/quotas.py
+?? src/madaala/quotas.py
 ?? tests/test_bedrock.py
 ?? tests/test_runner_safety.py
 
@@ -210,7 +210,7 @@ This status includes modifications already present when work began. The dataset'
 ## Complete runner --help
 
 ```text
-usage: python -m ethiocontexteval.runner [-h] [--provider {mock,bedrock}]
+usage: python -m madaala.runner [-h] [--provider {mock,bedrock}]
                                          [--config CONFIG] [--dataset DATASET]
                                          [--profile PROFILE]
                                          [--scenario SCENARIO]
@@ -224,13 +224,13 @@ usage: python -m ethiocontexteval.runner [-h] [--provider {mock,bedrock}]
                                          [--max-tokens MAX_TOKENS]
                                          [--temperature TEMPERATURE]
 
-Run EthioContextEval pilot generations (provider-independent).
+Run MADAALA pilot generations (provider-independent).
 
 options:
   -h, --help            show this help message and exit
   --provider {mock,bedrock}
                         Inference provider (default from config /
-                        ETHIOEVAL_PROVIDER / bedrock)
+                        MADAALA_PROVIDER / bedrock)
   --config CONFIG       Path to models JSON (e.g. config/models.bedrock.json)
   --dataset DATASET     Path to scenarios JSONL (default from config)
   --profile PROFILE     AWS profile name for Bedrock authentication
