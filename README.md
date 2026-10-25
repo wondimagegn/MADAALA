@@ -4,7 +4,7 @@
 
 MADAALA asks whether people receive comparably accurate, actionable, contextually appropriate and safe AI assistance when the same intent is expressed in English, Amharic or Afaan Oromo. This repository provides the MADAALA evaluation pipeline, research documentation and implementation roadmap.
 
-**Current status:** an executable Python prototype, not a released validated benchmark or MadaalaKit v1.0. The existing dataset has 12 scenarios and 36 prompts, all pending expert validation. The [18 October feasibility pilot](reports/proposal-feasibility.md) produced 36 successful Bedrock API responses; 19 reached the output limit. No human-scored language-quality or parity findings are available yet.
+**Current status:** an executable Python prototype, not a released validated benchmark or MadaalaKit v1.0. The existing dataset has 12 scenarios and 36 prompts. The [18 October feasibility pilot](reports/proposal-feasibility.md) produced 36 successful Bedrock API responses; 19 reached the output limit. No human-scored language-quality or parity findings are available yet.
 
 ## Planned benchmark
 
